@@ -1,0 +1,38 @@
+{
+  "name": "esqlite",
+  "version": "0.0.0",
+  "author": "Brian White <mscdex@mscdex.net>",
+  "description": "An SQLite binding with built-in encryption, focused on simplicity and (async) performance",
+  "main": "./lib/index",
+  "dependencies": {
+    "nan": "^2.15.0"
+  },
+  "devDependencies": {
+    "@mscdex/eslint-config": "^1.1.0",
+    "eslint": "^7.0.0"
+  },
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "test": "node test/test.js",
+    "lint": "eslint --cache --report-unused-disable-directives --ext=.js .eslintrc.js lib test",
+    "lint:fix": "npm run lint -- --fix"
+  },
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "keywords": [
+    "sqlite",
+    "sqlite3",
+    "database"
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/mscdex/esqlite/raw/master/LICENSE"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mscdex/esqlite.git"
+  }
+}
