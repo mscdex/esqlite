@@ -2,7 +2,7 @@
   "name": "esqlite",
   "version": "0.0.0",
   "author": "Brian White <mscdex@mscdex.net>",
-  "description": "An SQLite binding with built-in encryption, focused on simplicity and (async) performance",
+  "description": "An SQLite binding for node.js with built-in encryption, focused on simplicity and (async) performance",
   "main": "./lib/index",
   "dependencies": {
     "nan": "^2.15.0"
