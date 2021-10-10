@@ -2,6 +2,9 @@
 #include <node_buffer.h>
 #include <nan.h>
 #include <unordered_map>
+#ifdef _MSC_VER
+# include <malloc.h>
+#endif
 
 #include <sqlite3mc_amalgamation.h>
 
@@ -80,10 +83,10 @@ class BindValueBlob {
 #define EXTERN_APEX 0xFBEE9
 class ExtString : public String::ExternalOneByteStringResource {
  public:
-  ExtString(char* data, size_t len) : data_(data), len_(len) {
+  explicit ExtString(char* data, size_t len) : data_(data), len_(len) {
     Nan::AdjustExternalMemory(len);
   }
-  ~ExtString() {
+  ~ExtString() override {
     if (data_) {
       free(data_);
       Nan::AdjustExternalMemory(-len_);
@@ -616,7 +619,11 @@ void QueryAfter(uv_work_t* req) {
           break;
         int argc = (j == 0 /* Column names */ ? len : 2 + len);
         int offset = (j == 0 /* Column names */ ? 0 : 2);
+#ifdef _MSC_VER
+        Local<Value>* argv = static_cast<Local<Value>*>(_malloca(argc));
+#else
         Local<Value> argv[argc];
+#endif
         if (j != 0) {
           // Row data
           argv[0] = Nan::New<Uint32>(static_cast<uint32_t>(j - 1));
@@ -667,6 +674,9 @@ void QueryAfter(uv_work_t* req) {
           // Row data
           query_req->runInAsyncScope(rows, makeRowFn, argc, argv);
         }
+#ifdef _MSC_VER
+        _freea(argv);
+#endif
       }
       Nan::Set(results, i, rows);
     }
