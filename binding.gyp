@@ -18,6 +18,9 @@
             '-Wl,--exclude-libs,ALL',
           ],
         }],
+        ['OS=="win"', {
+          'win_delay_load_hook': 'false',
+        }],
       ],
     },
   ],
