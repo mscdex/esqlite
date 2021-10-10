@@ -104,14 +104,6 @@
       'direct_dependent_settings': {
         'include_dirs': ['.'],
         'defines': [
-          # These are manually maintained until SQLite3MultipleCiphers moves the
-          # same data into the amalgamated header file instead of the source
-          # file
-          #'SQLITE3MC_VERSION_MAJOR=1',
-          #'SQLITE3MC_VERSION_MINOR=3',
-          #'SQLITE3MC_VERSION_RELEASE=4',
-          #'SQLITE3MC_VERSION_SUBRELEASE=0',
-
           # Manually-tracked custom git revision
           'SQLITE3MC_VERSION_REV=e89ac7c9f7b9ff225a1b342b058aff81378d72f3',
         ],
