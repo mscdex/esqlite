@@ -620,7 +620,8 @@ void QueryAfter(uv_work_t* req) {
         int argc = (j == 0 /* Column names */ ? len : 2 + len);
         int offset = (j == 0 /* Column names */ ? 0 : 2);
 #ifdef _MSC_VER
-        Local<Value>* argv = static_cast<Local<Value>*>(_malloca(argc));
+        Local<Value>* argv =
+            static_cast<Local<Value>*>(_malloca(argc * sizeof(Local<Value>)));
 #else
         Local<Value> argv[argc];
 #endif

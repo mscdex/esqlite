@@ -69,7 +69,7 @@ function _mustCallInner(fn, criteria = 1, field) {
     ++context.actual;
     return fn.call(this, ...args);
   }
-  // TODO: remove origFn?
+
   wrapped.origFn = fn;
 
   return wrapped;

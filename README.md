@@ -193,9 +193,9 @@ my Linux desktop:
 
 # Requirements
 
-* [node.js](http://nodejs.org/) -- v10.7.0 or newer
-* (For now) A non-MSVC build environment if you're on Windows, due to unresolved
-  linker errors there.
+* [node.js](http://nodejs.org/)
+  * Windows: node v12.x or newer
+  * All other platforms: v10.7.0 or newer
 * An appropriate build environment -- see [node-gyp's documentation](https://github.com/nodejs/node-gyp/blob/master/README.md)
 
 
