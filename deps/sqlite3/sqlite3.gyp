@@ -90,6 +90,12 @@
           ],
         }],
         [ 'OS == "mac"', {
+          'defines!': [
+            'HAVE_POSIX_FALLOCATE=1',
+            'HAVE_PREAD64=1',
+            'HAVE_PWRITE64=1',
+            'HAVE_STRCHRNUL=1',
+          ],
           'defines': [
             'HAVE_FULLFSYNC=1',
           ],
