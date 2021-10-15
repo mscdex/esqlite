@@ -92,8 +92,8 @@ class ExtString : public String::ExternalOneByteStringResource {
       Nan::AdjustExternalMemory(-len_);
     }
   }
-  const char* data() const { return data_; }
-  size_t length() const { return len_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return len_; }
 
   char* data_;
   size_t len_;
@@ -548,7 +548,7 @@ void QueryWork(uv_work_t* req) {
   query_req->changes = sqlite3_changes(query_req->handle_ptr->db_);*/
 }
 
-void QueryAfter(uv_work_t* req) {
+void QueryAfter(uv_work_t* req, int status) {
   Nan::HandleScope scope;
   QueryRequest* query_req = static_cast<QueryRequest*>(req->data);
   Local<Object> handle = Nan::New(query_req->handle);
@@ -724,7 +724,7 @@ void InterruptWork(uv_work_t* req) {
   sqlite3_interrupt(intr_req->handle_ptr->db_);
 }
 
-void InterruptAfter(uv_work_t* req) {
+void InterruptAfter(uv_work_t* req, int status) {
   Nan::HandleScope scope;
   InterruptRequest* intr_req = static_cast<InterruptRequest*>(req->data);
   Local<Object> handle = Nan::New(intr_req->handle);
