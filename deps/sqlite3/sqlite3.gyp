@@ -45,17 +45,13 @@
         'SQLITE_SECURE_DELETE=1',
         'SQLITE_TEMP_STORE=2',
         'SQLITE_USER_AUTHENTICATION=0',
-
-        # Feature defines for SQLite
-        'SQLITE_ENABLE_FTS3',
-        'SQLITE_ENABLE_FTS4',
-        'SQLITE_ENABLE_FTS5',
-        'SQLITE_ENABLE_JSON1',
-        'SQLITE_ENABLE_MATH_FUNCTIONS',
       ],
 
-      # System-specific defines for SQLite
-      # TODO: get these defines dynamically
+      # System-specific and feature configs for SQLite
+      # Use generated config
+      'includes': [
+        '../../buildcheck.gypi',
+      ],
       'conditions': [
         [ 'OS != "win"', {
           # SQLite3MultipleCiphers and SQLite3 can be very noisy, mostly due to
@@ -66,49 +62,6 @@
               '-w',
             ],
           },
-
-          'defines': [
-            'HAVE_FDATASYNC=1',
-            'HAVE_GMTIME_R=1',
-            'HAVE_INTTYPES_H=1',
-            'HAVE_ISNAN=1',
-            'HAVE_LOCALTIME_R=1',
-            'HAVE_MALLOC_H=1',
-            'HAVE_MALLOC_USABLE_SIZE=1',
-            'HAVE_MEMORY_H=1',
-            'HAVE_POSIX_FALLOCATE=1',
-            'HAVE_PREAD=1',
-            'HAVE_PREAD64=1',
-            'HAVE_PWRITE=1',
-            'HAVE_PWRITE64=1',
-            'HAVE_STDINT_H=1',
-            'HAVE_STDLIB_H=1',
-            'HAVE_STRCHRNUL=1',
-            'HAVE_STRERROR_R=1',
-            'HAVE_STRING_H=1',
-            'HAVE_STRINGS_H=1',
-            'HAVE_SYS_TYPES_H=1',
-            'HAVE_SYS_STAT_H=1',
-            'HAVE_UNISTD_H=1',
-            'HAVE_USLEEP=1',
-            'HAVE_UTIME=1',
-          ],
-        }],
-        [ 'OS == "mac"', {
-          'defines!': [
-            'HAVE_POSIX_FALLOCATE=1',
-            'HAVE_PREAD64=1',
-            'HAVE_PWRITE64=1',
-            'HAVE_STRCHRNUL=1',
-          ],
-          'defines': [
-            'HAVE_FULLFSYNC=1',
-          ],
-        }],
-        [ 'OS=="win"', {
-          'defines': [
-            'HAVE_LOCALTIME_S=1',
-          ],
         }],
       ],
 
