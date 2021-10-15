@@ -61,6 +61,11 @@
           # SQLite3MultipleCiphers and SQLite3 can be very noisy, mostly due to
           # unused functions and variables
           'cflags': [ '-w' ],
+          'xcode_settings': {
+            'WARNING_CFLAGS': [
+              '-w',
+            ],
+          },
 
           'defines': [
             'HAVE_FDATASYNC=1',
