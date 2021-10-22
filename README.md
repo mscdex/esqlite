@@ -105,7 +105,7 @@ The sqlite packages being benchmarked:
 Package          | Version
 -----------------|--------:
 [better-sqlite3] | 7.4.3
-[esqlite]        | 0.0.1
+[esqlite]        | 0.0.5
 [sqlite3]        | 5.0.2
 [sqlite3 (PR)]   | 5.0.2
 
@@ -160,7 +160,7 @@ my Linux desktop:
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
     better-sqlite3 | `350`             | `89`
-    esqlite        | `200`             | `117`
+    esqlite        | `173`             | `115`
     sqlite3        | `760`             | `160`
     sqlite3 (PR)   | `390`             | `132`
 
@@ -172,10 +172,10 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `3`               | `38.0`
-    esqlite        | `3`               | `35.0`
-    sqlite3        | `10`              | `42.0`
-    sqlite3 (PR)   | `5`               | `41.5`
+    better-sqlite3 | `3.0`             | `38.0`
+    esqlite        | `2.3`             | `34.1`
+    sqlite3        | `10.0`            | `42.0`
+    sqlite3 (PR)   | `5.0`             | `41.5`
 
 * `SELECT * FROM data LIMIT 10`
 
@@ -185,10 +185,10 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `0.300`           | `38`
-    esqlite        | `1.000`           | `34`
-    sqlite3        | `0.800`           | `41`
-    sqlite3 (PR)   | `0.800`           | `41`
+    better-sqlite3 | `0.30`            | `38`
+    esqlite        | `0.78`            | `33`
+    sqlite3        | `0.80`            | `41`
+    sqlite3 (PR)   | `0.80`            | `41`
 
 
 # Requirements
