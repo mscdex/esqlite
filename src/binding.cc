@@ -611,48 +611,34 @@ void QueryAfter(uv_work_t* req, int status) {
         continue;
       }
 
-      Local<Array> rows = Nan::New<Array>(query_req->results[i].size() - 1);
+      if (query_req->results[i].size() < 2) {
+        Nan::Set(results, i, Nan::New<Array>(0));
+        continue;
+      }
+      int ncols = query_req->results[i][0].size();
+      if (ncols == 0) {
+        Nan::Set(results, i, Nan::New<Array>(0));
+        continue;
+      }
+      size_t nrows = query_req->results[i].size() - 1;
+      Local<Array> rows = Nan::New<Array>(nrows);
+
+      // Create row generator from column names
       Local<Function> rowFn;
-      for (size_t j = 0; j < query_req->results[i].size(); ++j) {
-        int len = query_req->results[i][j].size();
-        if (len == 0)
-          break;
-        int argc = (j == 0 /* Column names */ ? len : 2 + len);
-        int offset = (j == 0 /* Column names */ ? 0 : 2);
+      {
+        int argc = ncols;
 #ifdef _MSC_VER
         Local<Value>* argv =
             static_cast<Local<Value>*>(_malloca(argc * sizeof(Local<Value>)));
 #else
         Local<Value> argv[argc];
 #endif
-        if (j != 0) {
-          // Row data
-          argv[0] = Nan::New<Uint32>(static_cast<uint32_t>(j - 1));
-          argv[1] = rowFn;
-        }
-        for (int k = 0; k < len; ++k) {
+        for (int k = 0; k < ncols; ++k) {
           Local<Value> val;
-          switch (query_req->results[i][j][k].type) {
-            case ValueType::Null:
-              val = Nan::Null();
-              break;
-            case ValueType::StringEmpty:
-              val = Nan::EmptyString();
-              break;
-            case ValueType::BlobEmpty:
-              val = Nan::NewBuffer(0).ToLocalChecked();
-              break;
-            case ValueType::Blob: {
-              // Transfers ownership
-              val = Nan::NewBuffer(
-                static_cast<char*>(query_req->results[i][j][k].val),
-                query_req->results[i][j][k].len
-              ).ToLocalChecked();
-              break;
-            }
-            default: {
-              char* raw = static_cast<char*>(query_req->results[i][j][k].val);
-              size_t len = query_req->results[i][j][k].len;
+          switch (query_req->results[i][0][k].type) {
+            case ValueType::String: {
+              char* raw = static_cast<char*>(query_req->results[i][0][k].val);
+              size_t len = query_req->results[i][0][k].len;
               if (len < EXTERN_APEX) {
                 // Makes copy
                 val = Nan::New(raw, len).ToLocalChecked();
@@ -662,23 +648,91 @@ void QueryAfter(uv_work_t* req, int status) {
                 val = Nan::New(new ExtString(raw, len)).ToLocalChecked();
               }
             }
+            break;
+            case ValueType::StringEmpty:
+              val = Nan::EmptyString();
+              break;
+            default:
+              // Appease compiler
+              break;
           }
-          argv[offset + k] = val;
+          argv[k] = val;
         }
-        if (j == 0) {
-          // Column names
-          rowFn = Local<Function>::Cast(
-            query_req->runInAsyncScope(rows, makeObjectRowFn, argc, argv)
-                                      .ToLocalChecked()
-          );
-        } else {
-          // Row data
-          query_req->runInAsyncScope(rows, makeRowFn, argc, argv);
-        }
+        rowFn = Local<Function>::Cast(
+          query_req->runInAsyncScope(rows, makeObjectRowFn, argc, argv)
+                                    .ToLocalChecked()
+        );
 #ifdef _MSC_VER
         _freea(argv);
 #endif
       }
+
+      // Create rows
+      {
+        size_t j = 1;
+        while (true) {
+#define CHUNK_SIZE 30
+          size_t chunk_size =
+            min(nrows - (j - 1), static_cast<size_t>(CHUNK_SIZE));
+          if (chunk_size == 0)
+            break;
+          size_t end = j + chunk_size;
+
+          int offset = 2;
+          int argc = 2 + (ncols * chunk_size);
+#ifdef _MSC_VER
+          Local<Value>* argv =
+            static_cast<Local<Value>*>(_malloca(argc * sizeof(Local<Value>)));
+#else
+          Local<Value> argv[argc];
+#endif
+          argv[0] = Nan::New<Uint32>(static_cast<uint32_t>(j - 1));
+          argv[1] = rowFn;
+          for (; j < end; ++j) {
+            for (int k = 0; k < ncols; ++k) {
+              Local<Value> val;
+              switch (query_req->results[i][j][k].type) {
+                case ValueType::Null:
+                  val = Nan::Null();
+                  break;
+                case ValueType::StringEmpty:
+                  val = Nan::EmptyString();
+                  break;
+                case ValueType::BlobEmpty:
+                  val = Nan::NewBuffer(0).ToLocalChecked();
+                  break;
+                case ValueType::Blob: {
+                  // Transfers ownership
+                  val = Nan::NewBuffer(
+                    static_cast<char*>(query_req->results[i][j][k].val),
+                    query_req->results[i][j][k].len
+                  ).ToLocalChecked();
+                  break;
+                }
+                default: {
+                  char* raw =
+                    static_cast<char*>(query_req->results[i][j][k].val);
+                  size_t len = query_req->results[i][j][k].len;
+                  if (len < EXTERN_APEX) {
+                    // Makes copy
+                    val = Nan::New(raw, len).ToLocalChecked();
+                    free(raw);
+                  } else {
+                    // Uses reference to existing memory
+                    val = Nan::New(new ExtString(raw, len)).ToLocalChecked();
+                  }
+                }
+              }
+              argv[offset++] = val;
+            }
+          }
+          query_req->runInAsyncScope(rows, makeRowFn, argc, argv);
+#ifdef _MSC_VER
+          _freea(argv);
+#endif
+        }
+      }
+
       Nan::Set(results, i, rows);
     }
 
