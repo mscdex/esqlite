@@ -293,6 +293,10 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
 
 * close() - *(void)* - Closes the database.
 
+* end() - *(void)* - Automatically closes the database when the query queue is
+  empty. If the queue is empty when `end()` is called, then the database is
+  immediately closed.
+
 * interrupt(< _function_ >callback) - *(void)* -  Interrupts the currently
   running query. `callback` has no arguments and is called after any query has
   been interrupted.
