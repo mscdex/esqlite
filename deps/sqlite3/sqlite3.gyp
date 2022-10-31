@@ -69,7 +69,7 @@
         'include_dirs': ['.'],
         'defines': [
           # Manually-tracked custom git revision
-          'SQLITE3MC_VERSION_REV=b0c82a634d4adedcc07ae11390c6fd3d4dbc1374',
+          'SQLITE3MC_VERSION_REV=b41657a18439e136baf9498df9589c0d72f32fd2',
         ],
       },
     },
