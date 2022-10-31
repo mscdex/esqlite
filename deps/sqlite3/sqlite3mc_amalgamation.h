@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2019-2021 Ulrich Telle
+** Copyright:   (c) 2019-2022 Ulrich Telle
 ** License:     MIT
 */
 
@@ -30,10 +30,10 @@
 #define SQLITE3MC_VERSION_H_
 
 #define SQLITE3MC_VERSION_MAJOR      1
-#define SQLITE3MC_VERSION_MINOR      3
-#define SQLITE3MC_VERSION_RELEASE    9
+#define SQLITE3MC_VERSION_MINOR      5
+#define SQLITE3MC_VERSION_RELEASE    3
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.3.9"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.5.3"
 
 #endif /* SQLITE3MC_VERSION_H_ */
 /*** End of #include "sqlite3mc_version.h" ***/
@@ -192,9 +192,9 @@ extern "C" {
 ** [sqlite3_libversion_number()], [sqlite3_sourceid()],
 ** [sqlite_version()] and [sqlite_source_id()].
 */
-#define SQLITE_VERSION        "3.38.1"
-#define SQLITE_VERSION_NUMBER 3038001
-#define SQLITE_SOURCE_ID      "2022-03-12 13:37:29 38c210fdd258658321c85ec9c01a072fda3ada94540e3239d29b34dc547a8cbc"
+#define SQLITE_VERSION        "3.39.4"
+#define SQLITE_VERSION_NUMBER 3039004
+#define SQLITE_SOURCE_ID      "2022-09-29 15:55:41 a29f9949895322123f7c38fbe94c649a9d6e6c9cd0c3b41c96d694552f26b309"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -5639,7 +5639,8 @@ SQLITE_API unsigned int sqlite3_value_subtype(sqlite3_value*);
 ** object D and returns a pointer to that copy.  ^The [sqlite3_value] returned
 ** is a [protected sqlite3_value] object even if the input is not.
 ** ^The sqlite3_value_dup(V) interface returns NULL if V is NULL or if a
-** memory allocation fails.
+** memory allocation fails. ^If V is a [pointer value], then the result
+** of sqlite3_value_dup(V) is a NULL value.
 **
 ** ^The sqlite3_value_free(V) interface frees an [sqlite3_value] object
 ** previously obtained from [sqlite3_value_dup()].  ^If V is a NULL pointer
@@ -6320,6 +6321,28 @@ SQLITE_API int sqlite3_get_autocommit(sqlite3*);
 ** create the statement in the first place.
 */
 SQLITE_API sqlite3 *sqlite3_db_handle(sqlite3_stmt*);
+
+/*
+** CAPI3REF: Return The Schema Name For A Database Connection
+** METHOD: sqlite3
+**
+** ^The sqlite3_db_name(D,N) interface returns a pointer to the schema name
+** for the N-th database on database connection D, or a NULL pointer of N is
+** out of range.  An N value of 0 means the main database file.  An N of 1 is
+** the "temp" schema.  Larger values of N correspond to various ATTACH-ed
+** databases.
+**
+** Space to hold the string that is returned by sqlite3_db_name() is managed
+** by SQLite itself.  The string might be deallocated by any operation that
+** changes the schema, including [ATTACH] or [DETACH] or calls to
+** [sqlite3_serialize()] or [sqlite3_deserialize()], even operations that
+** occur on a different thread.  Applications that need to
+** remember the string long-term should make their own copy.  Applications that
+** are accessing the same database connection simultaneously on multiple
+** threads should mutex-protect calls to this API and should make their own
+** private copy of the result prior to releasing the mutex.
+*/
+SQLITE_API const char *sqlite3_db_name(sqlite3 *db, int N);
 
 /*
 ** CAPI3REF: Return The Filename For A Database Connection
@@ -9600,8 +9623,8 @@ SQLITE_API SQLITE_EXPERIMENTAL const char *sqlite3_vtab_collation(sqlite3_index_
 ** of a [virtual table] implementation. The result of calling this
 ** interface from outside of xBestIndex() is undefined and probably harmful.
 **
-** ^The sqlite3_vtab_distinct() interface returns an integer that is
-** either 0, 1, or 2.  The integer returned by sqlite3_vtab_distinct()
+** ^The sqlite3_vtab_distinct() interface returns an integer between 0 and
+** 3.  The integer returned by sqlite3_vtab_distinct()
 ** gives the virtual table additional information about how the query
 ** planner wants the output to be ordered. As long as the virtual table
 ** can meet the ordering requirements of the query planner, it may set
@@ -9633,6 +9656,13 @@ SQLITE_API SQLITE_EXPERIMENTAL const char *sqlite3_vtab_collation(sqlite3_index_
 ** that have the same value for all columns identified by "aOrderBy".
 ** ^However omitting the extra rows is optional.
 ** This mode is used for a DISTINCT query.
+** <li value="3"><p>
+** ^(If the sqlite3_vtab_distinct() interface returns 3, that means
+** that the query planner needs only distinct rows but it does need the
+** rows to be sorted.)^ ^The virtual table implementation is free to omit
+** rows that are identical in all aOrderBy columns, if it wants to, but
+** it is not required to omit any rows.  This mode is used for queries
+** that have both DISTINCT and ORDER BY clauses.
 ** </ol>
 **
 ** ^For the purposes of comparing virtual table output values to see if the
@@ -12959,13 +12989,13 @@ int sqlite3_user_delete(
 /*
 ** Symbols for ciphers
 */
-#define CODEC_TYPE_UNKNOWN   0
-#define CODEC_TYPE_AES128    1
-#define CODEC_TYPE_AES256    2
-#define CODEC_TYPE_CHACHA20  3
-#define CODEC_TYPE_SQLCIPHER 4
-#define CODEC_TYPE_RC4       5
-#define CODEC_TYPE_MAX       5
+#define CODEC_TYPE_UNKNOWN     0
+#define CODEC_TYPE_AES128      1
+#define CODEC_TYPE_AES256      2
+#define CODEC_TYPE_CHACHA20    3
+#define CODEC_TYPE_SQLCIPHER   4
+#define CODEC_TYPE_RC4         5
+#define CODEC_TYPE_MAX_BUILTIN 5
 
 /*
 ** Definition of API functions
@@ -13034,6 +13064,9 @@ SQLITE_API void sqlite3_activate_see(const char* zPassPhrase);
 /*
 ** Define functions for the configuration of the wxSQLite3 encryption extension
 */
+SQLITE_API int sqlite3mc_cipher_count();
+SQLITE_API int sqlite3mc_cipher_index(const char* cipherName);
+SQLITE_API const char* sqlite3mc_cipher_name(int cipherIndex);
 SQLITE_API int sqlite3mc_config(sqlite3* db, const char* paramName, int newValue);
 SQLITE_API int sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramName, int newValue);
 SQLITE_API unsigned char* sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName);
@@ -13044,6 +13077,88 @@ SQLITE_API int wxsqlite3_config(sqlite3* db, const char* paramName, int newValue
 SQLITE_API int wxsqlite3_config_cipher(sqlite3* db, const char* cipherName, const char* paramName, int newValue);
 SQLITE_API unsigned char* wxsqlite3_codec_data(sqlite3* db, const char* zDbName, const char* paramName);
 #endif
+
+/*
+** Structures and functions to dynamically register a cipher
+*/
+
+/*
+** Structure for a single cipher configuration parameter
+**
+** Components:
+**   m_name      - name of parameter (1st char = alpha, rest = alphanumeric or underscore, max 63 characters)
+**   m_value     - current/transient parameter value
+**   m_default   - default parameter value
+**   m_minValue  - minimum valid parameter value
+**   m_maxValue  - maximum valid parameter value
+*/
+typedef struct _CipherParams
+{
+  char* m_name;
+  int   m_value;
+  int   m_default;
+  int   m_minValue;
+  int   m_maxValue;
+} CipherParams;
+
+/*
+** Structure for a cipher API
+**
+** Components:
+**   m_name            - name of cipher (1st char = alpha, rest = alphanumeric or underscore, max 63 characters)
+**   m_allocateCipher  - Function pointer for function AllocateCipher
+**   m_freeCipher      - Function pointer for function FreeCipher
+**   m_cloneCipher     - Function pointer for function CloneCipher
+**   m_getLegacy       - Function pointer for function GetLegacy
+**   m_getPageSize     - Function pointer for function GetPageSize
+**   m_getReserved     - Function pointer for function GetReserved
+**   m_getSalt         - Function pointer for function GetSalt
+**   m_generateKey     - Function pointer for function GenerateKey
+**   m_encryptPage     - Function pointer for function EncryptPage
+**   m_decryptPage     - Function pointer for function DecryptPage
+*/
+
+typedef struct BtShared BtSharedMC;
+
+typedef void* (*AllocateCipher_t)(sqlite3* db);
+typedef void  (*FreeCipher_t)(void* cipher);
+typedef void  (*CloneCipher_t)(void* cipherTo, void* cipherFrom);
+typedef int   (*GetLegacy_t)(void* cipher);
+typedef int   (*GetPageSize_t)(void* cipher);
+typedef int   (*GetReserved_t)(void* cipher);
+typedef unsigned char* (*GetSalt_t)(void* cipher);
+typedef void  (*GenerateKey_t)(void* cipher, BtSharedMC* pBt, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt);
+typedef int   (*EncryptPage_t)(void* cipher, int page, unsigned char* data, int len, int reserved);
+typedef int   (*DecryptPage_t)(void* cipher, int page, unsigned char* data, int len, int reserved, int hmacCheck);
+
+typedef struct _CipherDescriptor
+{
+  char* m_name;
+  AllocateCipher_t m_allocateCipher;
+  FreeCipher_t     m_freeCipher;
+  CloneCipher_t    m_cloneCipher;
+  GetLegacy_t      m_getLegacy;
+  GetPageSize_t    m_getPageSize;
+  GetReserved_t    m_getReserved;
+  GetSalt_t        m_getSalt;
+  GenerateKey_t    m_generateKey;
+  EncryptPage_t    m_encryptPage;
+  DecryptPage_t    m_decryptPage;
+} CipherDescriptor;
+
+/*
+** Register a cipher
+**
+** Arguments:
+**   desc         - Cipher descriptor structure
+**   params       - Cipher configuration parameter table
+**   makeDefault  - flag whether to make the cipher the default cipher
+**
+** Returns:
+**   SQLITE_OK     - the cipher could be registered successfully
+**   SQLITE_ERROR  - the cipher could not be registered
+*/
+SQLITE_API int sqlite3mc_register_cipher(const CipherDescriptor* desc, const CipherParams* params, int makeDefault);
 
 #ifdef __cplusplus
 }
