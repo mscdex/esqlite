@@ -50,16 +50,6 @@ typedef struct {
   void* val;
 } RowValue;
 
-class BindValueStringUTF8 {
-  public:
-    BindValueStringUTF8(Local<Value>& str_, int len_)
-      : str(str_), len(len_) {}
-    ~BindValueStringUTF8() {}
-
-    Nan::Utf8String str;
-    int len;
-};
-
 class BindValueBlob {
   public:
     BindValueBlob(Local<Value>& buf_) {
@@ -213,8 +203,9 @@ bool bind_value(sqlite3_stmt* stmt, int index, BindValue& bv, int* res) {
                                SQLITE_STATIC);
       break;
     case ValueType::String: {
-      BindValueStringUTF8* str = static_cast<BindValueStringUTF8*>(bv.val);
-      *res = sqlite3_bind_text(stmt, index, *str->str, str->len, SQLITE_STATIC);
+      Nan::Utf8String* str = static_cast<Nan::Utf8String*>(bv.val);
+      *res =
+        sqlite3_bind_text(stmt, index, **str, str->length(), SQLITE_STATIC);
       break;
     }
     case ValueType::BlobEmpty:
@@ -252,7 +243,7 @@ bool bind_value(sqlite3_stmt* stmt, int index, BindValue& bv, int* res) {
 void bind_value_cleanup(BindValue& bv) {
   switch (bv.type) {
     case ValueType::String: {
-      BindValueStringUTF8* str = static_cast<BindValueStringUTF8*>(bv.val);
+      Nan::Utf8String* str = static_cast<Nan::Utf8String*>(bv.val);
       delete str;
       break;
     }
@@ -293,12 +284,11 @@ bool set_bind_value(BindValue& bv, Local<Value>& val) {
       bv.type = ValueType::Int64Internal4;
   } else if (val->IsString()) {
     Local<String> str = Local<String>::Cast(val);
-    int len = str->Length();
-    if (len == 0) {
+    if (str->Length() == 0) {
       bv.type = ValueType::StringEmpty;
     } else {
       bv.type = ValueType::String;
-      bv.val = new BindValueStringUTF8(val, len);
+      bv.val = new Nan::Utf8String(val);
     }
   } else if (val->IsNumber()) {
     double doubleval = Nan::To<double>(val).FromJust();

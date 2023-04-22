@@ -33,10 +33,12 @@ series([
       'foo@example.org', 'Foo', 'Bar', null, Buffer.from('abcd'),
       'baz@example.com', 'Baz', 'Quux', 66, Buffer.from('efgh'),
       'quuy@example.net', 'Quuy', 'Quuz', 33, Buffer.from('ijkl'),
+      'utf8@example.net', 'テスト', 'test', 99, Buffer.from('1'),
     ];
     db.query(`
       INSERT INTO data (emailAddress, firstName, lastName, age, secret)
       VALUES (?, ?, ?, ?, ?),
+             (?, ?, ?, ?, ?),
              (?, ?, ?, ?, ?),
              (?, ?, ?, ?, ?)
     `, values, cb);
@@ -62,7 +64,7 @@ series([
     db.query('SELECT * FROM data ORDER BY id', (err, rows) => {
       if (err)
         return cb(err);
-      assert.strictEqual(rows.length, 3);
+      assert.strictEqual(rows.length, 4);
       assert.deepStrictEqual(rows, [{
         id: '1',
         emailAddress: 'foo@example.org',
@@ -84,6 +86,13 @@ series([
         lastName: 'Quuz',
         age: '33',
         secret: Buffer.from('ijkl'),
+      }, {
+        id: '4',
+        emailAddress: 'utf8@example.net',
+        firstName: 'テスト',
+        lastName: 'test',
+        age: '99',
+        secret: Buffer.from('1'),
       }]);
       cb();
     });
