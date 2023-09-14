@@ -3,7 +3,7 @@ Description
 
 An SQLite (more accurately [SQLite3MultipleCiphers](https://utelle.github.io/SQLite3MultipleCiphers/)) binding for [node.js](https://nodejs.org) focused on simplicity and (async) performance.
 
-Current SQLite version: 3.42.0
+Current SQLite version: 3.43.0
 
 When dealing with encrypted sqlite databases, this binding only supports the
 ChaCha20-Poly1305 cipher to keep things simple, secure, and working well across
