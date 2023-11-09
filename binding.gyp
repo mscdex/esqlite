@@ -12,6 +12,11 @@
       ],
       'cflags': [ '-O3' ],
       'conditions': [
+        [ 'OS=="mac"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': ['-framework Security', '-framework Foundation'],
+          },
+        }],
         ['OS=="linux"', {
           'ldflags': [
             '-Wl,-Bsymbolic',
