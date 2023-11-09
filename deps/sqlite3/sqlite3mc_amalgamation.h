@@ -15,9 +15,9 @@
 
 #define SQLITE3MC_VERSION_MAJOR      1
 #define SQLITE3MC_VERSION_MINOR      7
-#define SQLITE3MC_VERSION_RELEASE    2
+#define SQLITE3MC_VERSION_RELEASE    4
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.7.2"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.7.4"
 
 #endif
 
@@ -73,9 +73,9 @@ extern "C" {
 #endif
 
 
-#define SQLITE_VERSION        "3.43.2"
-#define SQLITE_VERSION_NUMBER 3043002
-#define SQLITE_SOURCE_ID      "2023-10-10 12:14:04 4310099cce5a487035fa535dd3002c59ac7f1d1bec68d7cf317fd3e769484790"
+#define SQLITE_VERSION        "3.44.0"
+#define SQLITE_VERSION_NUMBER 3044000
+#define SQLITE_SOURCE_ID      "2023-11-01 11:23:50 17129ba1ff7f0daf37100ee82d507aef7827cf38de1866e2633096ae6ad81301"
 
 
 SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
@@ -890,6 +890,7 @@ SQLITE_API int sqlite3_finalize(sqlite3_stmt *pStmt);
 SQLITE_API int sqlite3_reset(sqlite3_stmt *pStmt);
 
 
+
 SQLITE_API int sqlite3_create_function(
   sqlite3 *db,
   const char *zFunctionName,
@@ -999,6 +1000,9 @@ SQLITE_API sqlite3 *sqlite3_context_db_handle(sqlite3_context*);
 SQLITE_API void *sqlite3_get_auxdata(sqlite3_context*, int N);
 SQLITE_API void sqlite3_set_auxdata(sqlite3_context*, int N, void*, void (*)(void*));
 
+
+SQLITE_API void *sqlite3_get_clientdata(sqlite3*,const char*);
+SQLITE_API int sqlite3_set_clientdata(sqlite3*, const char*, void*, void(*)(void*));
 
 
 typedef void (*sqlite3_destructor_type)(void*);
@@ -1234,6 +1238,9 @@ struct sqlite3_module {
   int (*xRollbackTo)(sqlite3_vtab *pVTab, int);
 
   int (*xShadowName)(const char*);
+
+  int (*xIntegrity)(sqlite3_vtab *pVTab, const char *zSchema,
+                    const char *zTabName, int mFlags, char **pzErr);
 };
 
 
@@ -1429,6 +1436,7 @@ SQLITE_API int sqlite3_test_control(int op, ...);
 #define SQLITE_TESTCTRL_PRNG_SAVE                5
 #define SQLITE_TESTCTRL_PRNG_RESTORE             6
 #define SQLITE_TESTCTRL_PRNG_RESET               7
+#define SQLITE_TESTCTRL_FK_NO_ACTION             7
 #define SQLITE_TESTCTRL_BITVEC_TEST              8
 #define SQLITE_TESTCTRL_FAULT_INSTALL            9
 #define SQLITE_TESTCTRL_BENIGN_MALLOC_HOOKS     10
@@ -2086,10 +2094,23 @@ SQLITE_API int sqlite3changeset_concat(
 
 
 
+SQLITE_API int sqlite3changeset_upgrade(
+  sqlite3 *db,
+  const char *zDb,
+  int nIn, const void *pIn,
+  int *pnOut, void **ppOut
+);
+
+
+
+
 typedef struct sqlite3_changegroup sqlite3_changegroup;
 
 
 SQLITE_API int sqlite3changegroup_new(sqlite3_changegroup **pp);
+
+
+SQLITE_API int sqlite3changegroup_schema(sqlite3_changegroup*, sqlite3*, const char *zDb);
 
 
 SQLITE_API int sqlite3changegroup_add(sqlite3_changegroup*, int nData, void *pData);
@@ -2142,6 +2163,7 @@ SQLITE_API int sqlite3changeset_apply_v2(
 #define SQLITE_CHANGESETAPPLY_NOSAVEPOINT   0x0001
 #define SQLITE_CHANGESETAPPLY_INVERT        0x0002
 #define SQLITE_CHANGESETAPPLY_IGNORENOOP    0x0004
+#define SQLITE_CHANGESETAPPLY_FKNOACTION    0x0008
 
 
 #define SQLITE_CHANGESET_DATA        1
