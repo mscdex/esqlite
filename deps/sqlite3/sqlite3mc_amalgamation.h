@@ -14,10 +14,10 @@
 #define SQLITE3MC_VERSION_H_
 
 #define SQLITE3MC_VERSION_MAJOR      1
-#define SQLITE3MC_VERSION_MINOR      7
-#define SQLITE3MC_VERSION_RELEASE    4
+#define SQLITE3MC_VERSION_MINOR      8
+#define SQLITE3MC_VERSION_RELEASE    6
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.7.4"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.8.6"
 
 #endif
 
@@ -73,9 +73,9 @@ extern "C" {
 #endif
 
 
-#define SQLITE_VERSION        "3.44.0"
-#define SQLITE_VERSION_NUMBER 3044000
-#define SQLITE_SOURCE_ID      "2023-11-01 11:23:50 17129ba1ff7f0daf37100ee82d507aef7827cf38de1866e2633096ae6ad81301"
+#define SQLITE_VERSION        "3.46.0"
+#define SQLITE_VERSION_NUMBER 3046000
+#define SQLITE_SOURCE_ID      "2024-05-23 13:25:27 96c92aba00c8375bc32fafcdf12429c58bd8aabfcadab6683e35bbb9cdebf19e"
 
 
 SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
@@ -503,6 +503,7 @@ struct sqlite3_mem_methods {
 #define SQLITE_CONFIG_SMALL_MALLOC        27
 #define SQLITE_CONFIG_SORTERREF_SIZE      28
 #define SQLITE_CONFIG_MEMDB_MAXSIZE       29
+#define SQLITE_CONFIG_ROWID_IN_VIEW       30
 
 
 #define SQLITE_DBCONFIG_MAINDBNAME            1000
@@ -948,6 +949,7 @@ SQLITE_API int sqlite3_create_window_function(
 #define SQLITE_DIRECTONLY       0x000080000
 #define SQLITE_SUBTYPE          0x000100000
 #define SQLITE_INNOCUOUS        0x000200000
+#define SQLITE_RESULT_SUBTYPE   0x001000000
 
 
 #ifndef SQLITE_OMIT_DEPRECATED
@@ -1444,6 +1446,7 @@ SQLITE_API int sqlite3_test_control(int op, ...);
 #define SQLITE_TESTCTRL_ASSERT                  12
 #define SQLITE_TESTCTRL_ALWAYS                  13
 #define SQLITE_TESTCTRL_RESERVE                 14
+#define SQLITE_TESTCTRL_JSON_SELFCHECK          14
 #define SQLITE_TESTCTRL_OPTIMIZATIONS           15
 #define SQLITE_TESTCTRL_ISKEYWORD               16
 #define SQLITE_TESTCTRL_SCRATCHMALLOC           17
@@ -2116,6 +2119,14 @@ SQLITE_API int sqlite3changegroup_schema(sqlite3_changegroup*, sqlite3*, const c
 SQLITE_API int sqlite3changegroup_add(sqlite3_changegroup*, int nData, void *pData);
 
 
+SQLITE_API int sqlite3changegroup_add_change(
+  sqlite3_changegroup*,
+  sqlite3_changeset_iter*
+);
+
+
+
+
 SQLITE_API int sqlite3changegroup_output(
   sqlite3_changegroup*,
   int *pnData,
@@ -2365,6 +2376,13 @@ struct Fts5ExtensionApi {
 
   int (*xPhraseFirstColumn)(Fts5Context*, int iPhrase, Fts5PhraseIter*, int*);
   void (*xPhraseNextColumn)(Fts5Context*, Fts5PhraseIter*, int *piCol);
+
+
+  int (*xQueryToken)(Fts5Context*,
+      int iPhrase, int iToken,
+      const char **ppToken, int *pnToken
+  );
+  int (*xInstToken)(Fts5Context*, int iIdx, int iToken, const char**, int*);
 };
 
 
@@ -2456,7 +2474,7 @@ extern "C" {
 #endif
 
 
-int sqlite3_user_authenticate(
+SQLITE_API int sqlite3_user_authenticate(
   sqlite3 *db,
   const char *zUsername,
   const char *aPW,
@@ -2464,7 +2482,7 @@ int sqlite3_user_authenticate(
 );
 
 
-int sqlite3_user_add(
+SQLITE_API int sqlite3_user_add(
   sqlite3 *db,
   const char *zUsername,
   const char *aPW,
@@ -2473,7 +2491,7 @@ int sqlite3_user_add(
 );
 
 
-int sqlite3_user_change(
+SQLITE_API int sqlite3_user_change(
   sqlite3 *db,
   const char *zUsername,
   const char *aPW,
@@ -2482,7 +2500,7 @@ int sqlite3_user_change(
 );
 
 
-int sqlite3_user_delete(
+SQLITE_API int sqlite3_user_delete(
   sqlite3 *db,
   const char *zUsername
 );
@@ -2503,7 +2521,8 @@ int sqlite3_user_delete(
 #define CODEC_TYPE_CHACHA20    3
 #define CODEC_TYPE_SQLCIPHER   4
 #define CODEC_TYPE_RC4         5
-#define CODEC_TYPE_MAX_BUILTIN 5
+#define CODEC_TYPE_ASCON128    6
+#define CODEC_TYPE_MAX_BUILTIN 6
 
 
 
@@ -2615,6 +2634,7 @@ extern "C" {
 #ifndef SQLITE_PRIVATE
 #define SQLITE_PRIVATE
 #endif
+
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char* zVfs);
 
 SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault);
