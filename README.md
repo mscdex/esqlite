@@ -97,24 +97,19 @@ CREATE TABLE data (
 )
 ```
 
-The node.js version benchmarked with here was **v16.10.0**. I did however notice
-that older node.js branches (e.g. v10.x) performed *better*, for example:
-`esqlite` was ~20ms faster in the 100k row fetching benchmark with
-node v10.22.1 compared to node v16.10.0.
+The node.js version benchmarked with here was **v20.14.0**.
 
 The sqlite packages being benchmarked:
 
 Package          | Version
 -----------------|--------:
-[better-sqlite3] | 7.4.3
-[esqlite]        | 0.0.5
-[sqlite3]        | 5.0.2
-[sqlite3 (PR)]   | 5.0.2
+[better-sqlite3] | 11.0.0
+[esqlite]        | 0.0.18
+[sqlite3]        | 5.1.7
 
-[better-sqlite3]: https://github.com/JoshuaWise/better-sqlite3
+[better-sqlite3]: https://github.com/WiseLibs/better-sqlite3
 [esqlite]: https://github.com/mscdex/esqlite
-[sqlite3]: https://github.com/mapbox/node-sqlite3
-[sqlite3 (PR)]: https://github.com/mapbox/node-sqlite3/pull/1471
+[sqlite3]: https://github.com/TryGhost/node-sqlite3
 
 Here is the code and the results for a couple of different queries that I ran on
 my Linux desktop:
@@ -145,7 +140,7 @@ my Linux desktop:
           db.close();
         });
         ```
-    * `sqlite3` / `sqlite3 (PR)`
+    * `sqlite3`
         ```js
         const sqlite3 = require('sqlite3');
         const db = new sqlite3.Database('/tmp/test.db', sqlite3.OPEN_READONLY);
@@ -161,10 +156,9 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `350`             | `89`
-    esqlite        | `173`             | `115`
-    sqlite3        | `760`             | `160`
-    sqlite3 (PR)   | `390`             | `132`
+    better-sqlite3 | `121`             | `101`
+    esqlite        | `88`              | `129`
+    sqlite3        | `189`             | `146`
 
 * `SELECT * FROM data LIMIT 1000`
 
@@ -174,10 +168,9 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `3.0`             | `38.0`
-    esqlite        | `2.3`             | `34.1`
-    sqlite3        | `10.0`            | `42.0`
-    sqlite3 (PR)   | `5.0`             | `41.5`
+    better-sqlite3 | `1.5`             | `51`
+    esqlite        | `1.3`             | `51`
+    sqlite3        | `2.3`             | `47`
 
 * `SELECT * FROM data LIMIT 10`
 
@@ -187,10 +180,9 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `0.30`            | `38`
-    esqlite        | `0.78`            | `33`
-    sqlite3        | `0.80`            | `41`
-    sqlite3 (PR)   | `0.80`            | `41`
+    better-sqlite3 | `0.2`            | `51`
+    esqlite        | `0.5`            | `46`
+    sqlite3        | `0.7`            | `47`
 
 
 # Requirements
