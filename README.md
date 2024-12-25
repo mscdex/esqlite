@@ -103,8 +103,8 @@ The sqlite packages being benchmarked:
 
 Package          | Version
 -----------------|--------:
-[better-sqlite3] | 11.0.0
-[esqlite]        | 0.0.18
+[better-sqlite3] | 11.7.0
+[esqlite]        | 0.0.19
 [sqlite3]        | 5.1.7
 
 [better-sqlite3]: https://github.com/WiseLibs/better-sqlite3
@@ -169,7 +169,7 @@ my Linux desktop:
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
     better-sqlite3 | `1.5`             | `51`
-    esqlite        | `1.3`             | `51`
+    esqlite        | `1.3`             | `50`
     sqlite3        | `2.3`             | `47`
 
 * `SELECT * FROM data LIMIT 10`
@@ -180,9 +180,9 @@ my Linux desktop:
 
     Package        | Average time (ms) | Average max RSS (MB)
     ---------------|------------------:|---------------------:
-    better-sqlite3 | `0.2`            | `51`
-    esqlite        | `0.5`            | `46`
-    sqlite3        | `0.7`            | `47`
+    better-sqlite3 | `0.185`           | `50`
+    esqlite        | `0.500`           | `46`
+    sqlite3        | `0.603`           | `47`
 
 
 # Requirements
@@ -190,7 +190,7 @@ my Linux desktop:
 * [node.js](http://nodejs.org/)
   * Windows: node v12.x or newer
   * All other platforms: node v10.7.0 or newer
-* An appropriate build environment -- see [node-gyp's documentation](https://github.com/nodejs/node-gyp/blob/master/README.md)
+* An appropriate build environment -- see [node-gyp's documentation](https://github.com/nodejs/node-gyp/blob/main/README.md)
 
 
 # Installation
