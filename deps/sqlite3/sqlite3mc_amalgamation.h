@@ -13,11 +13,11 @@
 #ifndef SQLITE3MC_VERSION_H_
 #define SQLITE3MC_VERSION_H_
 
-#define SQLITE3MC_VERSION_MAJOR      1
-#define SQLITE3MC_VERSION_MINOR      9
-#define SQLITE3MC_VERSION_RELEASE    2
+#define SQLITE3MC_VERSION_MAJOR      2
+#define SQLITE3MC_VERSION_MINOR      1
+#define SQLITE3MC_VERSION_RELEASE    0
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.9.2"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 2.1.0"
 
 #endif
 
@@ -73,9 +73,9 @@ extern "C" {
 #endif
 
 
-#define SQLITE_VERSION        "3.47.2"
-#define SQLITE_VERSION_NUMBER 3047002
-#define SQLITE_SOURCE_ID      "2024-12-07 20:39:59 2aabe05e2e8cae4847a802ee2daddc1d7413d8fc560254d93ee3e72c14685b6c"
+#define SQLITE_VERSION        "3.49.1"
+#define SQLITE_VERSION_NUMBER 3049001
+#define SQLITE_SOURCE_ID      "2025-02-18 13:38:58 873d4e274b4988d260ba8354a9718324a1c26187a4ab4c1cc0227c03d0f10e70"
 
 
 SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
@@ -386,6 +386,7 @@ struct sqlite3_io_methods {
 #define SQLITE_FCNTL_EXTERNAL_READER        40
 #define SQLITE_FCNTL_CKSM_FILE              41
 #define SQLITE_FCNTL_RESET_CACHE            42
+#define SQLITE_FCNTL_NULL_IO                43
 
 
 #define SQLITE_GET_LOCKPROXYFILE      SQLITE_FCNTL_GET_LOCKPROXYFILE
@@ -527,7 +528,10 @@ struct sqlite3_mem_methods {
 #define SQLITE_DBCONFIG_TRUSTED_SCHEMA        1017
 #define SQLITE_DBCONFIG_STMT_SCANSTATUS       1018
 #define SQLITE_DBCONFIG_REVERSE_SCANORDER     1019
-#define SQLITE_DBCONFIG_MAX                   1019
+#define SQLITE_DBCONFIG_ENABLE_ATTACH_CREATE  1020
+#define SQLITE_DBCONFIG_ENABLE_ATTACH_WRITE   1021
+#define SQLITE_DBCONFIG_ENABLE_COMMENTS       1022
+#define SQLITE_DBCONFIG_MAX                   1022
 
 
 SQLITE_API int sqlite3_extended_result_codes(sqlite3*, int onoff);
@@ -735,6 +739,7 @@ SQLITE_API int sqlite3_limit(sqlite3*, int id, int newVal);
 #define SQLITE_PREPARE_PERSISTENT              0x01
 #define SQLITE_PREPARE_NORMALIZE               0x02
 #define SQLITE_PREPARE_NO_VTAB                 0x04
+#define SQLITE_PREPARE_DONT_LOG                0x10
 
 
 SQLITE_API int sqlite3_prepare(
@@ -1842,7 +1847,7 @@ SQLITE_API int sqlite3_deserialize(
 #ifdef __cplusplus
 }
 #endif
-#endif
+
 
 
 
@@ -2515,58 +2520,12 @@ struct fts5_api {
 #endif
 
 
+#endif
 
 
 
 #ifdef SQLITE_USER_AUTHENTICATION
-
-
-
-#ifdef SQLITE_USER_AUTHENTICATION
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-SQLITE_API int sqlite3_user_authenticate(
-  sqlite3 *db,
-  const char *zUsername,
-  const char *aPW,
-  int nPW
-);
-
-
-SQLITE_API int sqlite3_user_add(
-  sqlite3 *db,
-  const char *zUsername,
-  const char *aPW,
-  int nPW,
-  int isAdmin
-);
-
-
-SQLITE_API int sqlite3_user_change(
-  sqlite3 *db,
-  const char *zUsername,
-  const char *aPW,
-  int nPW,
-  int isAdmin
-);
-
-
-SQLITE_API int sqlite3_user_delete(
-  sqlite3 *db,
-  const char *zUsername
-);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
-
-
+#undef SQLITE_USER_AUTHENTICATION
 #endif
 
 
@@ -2577,7 +2536,8 @@ SQLITE_API int sqlite3_user_delete(
 #define CODEC_TYPE_SQLCIPHER   4
 #define CODEC_TYPE_RC4         5
 #define CODEC_TYPE_ASCON128    6
-#define CODEC_TYPE_MAX_BUILTIN 6
+#define CODEC_TYPE_AEGIS       7
+#define CODEC_TYPE_MAX_BUILTIN 7
 
 
 
