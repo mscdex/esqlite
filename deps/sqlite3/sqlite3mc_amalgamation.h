@@ -14,10 +14,10 @@
 #define SQLITE3MC_VERSION_H_
 
 #define SQLITE3MC_VERSION_MAJOR      2
-#define SQLITE3MC_VERSION_MINOR      1
-#define SQLITE3MC_VERSION_RELEASE    0
+#define SQLITE3MC_VERSION_MINOR      2
+#define SQLITE3MC_VERSION_RELEASE    4
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 2.1.0"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 2.2.4"
 
 #endif
 
@@ -73,9 +73,9 @@ extern "C" {
 #endif
 
 
-#define SQLITE_VERSION        "3.49.1"
-#define SQLITE_VERSION_NUMBER 3049001
-#define SQLITE_SOURCE_ID      "2025-02-18 13:38:58 873d4e274b4988d260ba8354a9718324a1c26187a4ab4c1cc0227c03d0f10e70"
+#define SQLITE_VERSION        "3.50.4"
+#define SQLITE_VERSION_NUMBER 3050004
+#define SQLITE_SOURCE_ID      "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3"
 
 
 SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
@@ -387,6 +387,7 @@ struct sqlite3_io_methods {
 #define SQLITE_FCNTL_CKSM_FILE              41
 #define SQLITE_FCNTL_RESET_CACHE            42
 #define SQLITE_FCNTL_NULL_IO                43
+#define SQLITE_FCNTL_BLOCK_ON_CONNECT       44
 
 
 #define SQLITE_GET_LOCKPROXYFILE      SQLITE_FCNTL_GET_LOCKPROXYFILE
@@ -563,6 +564,12 @@ SQLITE_API int sqlite3_busy_handler(sqlite3*,int(*)(void*,int),void*);
 
 
 SQLITE_API int sqlite3_busy_timeout(sqlite3*, int ms);
+
+
+SQLITE_API int sqlite3_setlk_timeout(sqlite3*, int ms, int flags);
+
+
+#define SQLITE_SETLK_BLOCK_ON_CONNECT 0x01
 
 
 SQLITE_API int sqlite3_get_table(
@@ -2102,17 +2109,6 @@ SQLITE_API int sqlite3changeset_concat(
   int *pnOut,
   void **ppOut
 );
-
-
-
-SQLITE_API int sqlite3changeset_upgrade(
-  sqlite3 *db,
-  const char *zDb,
-  int nIn, const void *pIn,
-  int *pnOut, void **ppOut
-);
-
-
 
 
 typedef struct sqlite3_changegroup sqlite3_changegroup;
