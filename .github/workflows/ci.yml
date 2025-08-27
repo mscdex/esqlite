@@ -72,6 +72,9 @@ jobs:
       - name: Install VS2019 (node <16.x)
         if: ${{ contains(fromJSON('["12.x", "14.x"]'), matrix.node-version) }}
         run: choco install visualstudio2019buildtools
+      - name: Install VS2019 C++ (node<16.x)
+        if: ${{ contains(fromJSON('["12.x", "14.x"]'), matrix.node-version) }}
+        run: choco install visualstudio2019-workload-vctools
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
