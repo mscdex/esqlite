@@ -103,8 +103,8 @@ The sqlite packages being benchmarked:
 
 Package          | Version
 -----------------|--------:
-[better-sqlite3] | 11.7.0
-[esqlite]        | 0.0.19
+[better-sqlite3] | 12.2.0
+[esqlite]        | 0.0.21
 [sqlite3]        | 5.1.7
 
 [better-sqlite3]: https://github.com/WiseLibs/better-sqlite3
