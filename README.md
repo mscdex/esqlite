@@ -246,6 +246,10 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
 
 * `Database` - A class that represents a connection to an SQLite database.
 
+* `ACTION_CODES` - *object* - Contains currently known SQLite action codes as
+                              seen [here][1], keyed on the name minus the
+                              `SQLITE_` prefix.
+
 * `OPEN_FLAGS` - *object* - Contains various flags that can be passed to
                             `database.open()`:
 
@@ -279,8 +283,34 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
 
 ## `Database` methods
 
-* Database(< _string_ >path) - Creates a new `Database` object for operating
-  on the database located at `path`.
+* Database(< _string_ >path[, < _mixed_ >authorizer]) - Creates a new `Database`
+  object for operating on the database located at `path`. If specified,
+  `authorizer` must be one of:
+
+    * *function* - A callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
+
+    * *object*
+
+      * `callback` - *function* - An optional callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
+
+      * `filter` - *array* - An array containing action code values. If
+        `callback` is provided, only these action codes will be passed to the
+        `callback` and all others will be automatically handled according to the
+        value in `filterNoMatchResult`. If `callback` is *not* provided, then
+        these action codes will be automatically handled according to the value
+        in `filterMatchResult` and all others according to the value in
+        `filterNoMatchResult`.
+
+      * `filterMatchResult` - *mixed* - If `callback` is not provided, must be
+         one of: `true`, `false`, `null`.
+
+      * `filterNoMatchResult` - *mixed* - Must be one of: `true`, `false`, `null`.
+
+    `actionCode` values can generally be found [here][1].
+
+    For callbacks, the contents of `arg1` through `arg4` depend on the
+    `actionCode` and will either be `null` or a string. See the notes [here][1]
+    to discover what the values are for each `actionCode`.
 
 * autoCommitEnabled() - *boolean* - Returns whether the opened database
   currently has auto-commit enabled.
@@ -329,3 +359,5 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
   It is possible that the length of `err` and/or `rows` will not equal the
   number of statements if there was a fatal error that halted execution of any
   further statements.
+
+[1]: https://www.sqlite.org/c3ref/c_alter_table.html

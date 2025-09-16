@@ -2,6 +2,7 @@
 #include <node_buffer.h>
 #include <nan.h>
 #include <unordered_map>
+#include <unordered_set>
 #ifdef _MSC_VER
 # include <malloc.h>
 #endif
@@ -89,6 +90,11 @@ class ExtString : public String::ExternalOneByteStringResource {
   size_t len_;
 };
 
+typedef int (*SqliteAuthCallback)(void*,int,const char*,const char*,const char*,
+                                  const char*);
+
+class AuthorizerRequest;
+
 class DBHandle : public Nan::ObjectWrap {
  public:
   explicit DBHandle();
@@ -109,6 +115,110 @@ class DBHandle : public Nan::ObjectWrap {
   size_t working_;
   Nan::Persistent<Function> makeRowFn;
   Nan::Persistent<Function> makeObjectRowFn;
+  AuthorizerRequest* authorizeReq;
+};
+
+class AuthorizerRequest : public Nan::AsyncResource {
+public:
+  AuthorizerRequest(SqliteAuthCallback cb)
+    : Nan::AsyncResource("esqlite:AuthorizerRequest") {
+    sqlite_auth_callback = cb;
+  }
+  AuthorizerRequest(SqliteAuthCallback cb, Local<Function> js_cb)
+    : Nan::AsyncResource("esqlite:AuthorizerRequest"), match_result(-1) {
+    int status = uv_mutex_init(&mutex);
+    assert(status == 0);
+
+    status = uv_cond_init(&cond);
+    assert(status == 0);
+
+    status = uv_async_init(
+      Nan::GetCurrentEventLoop(),
+      &async,
+      AuthorizerRequest::authorize_async_cb
+    );
+    assert(status == 0);
+    async.data = this;
+
+    js_callback.Reset(js_cb);
+    sqlite_auth_callback = cb;
+  }
+  ~AuthorizerRequest() {
+    if (!js_callback.IsEmpty()) {
+      uv_mutex_destroy(&mutex);
+      uv_cond_destroy(&cond);
+      js_callback.Reset();
+    }
+  }
+
+  static void uv_close_callback(uv_handle_t* handle) {
+    AuthorizerRequest* req = static_cast<AuthorizerRequest*>(handle->data);
+    delete req;
+  }
+
+  static void authorize_async_cb(uv_async_t* handle) {
+    Nan::HandleScope scope;
+    AuthorizerRequest* req = static_cast<AuthorizerRequest*>(handle->data);
+    uv_mutex_lock(&req->mutex);
+
+    Local<Value> argv[5];
+    argv[0] = Nan::New<Int32>(req->code);
+    if (req->arg1 == nullptr)
+      argv[1] = Nan::Null();
+    else
+      argv[1] = Nan::New<String>(req->arg1).ToLocalChecked();
+    if (req->arg2 == nullptr)
+      argv[2] = Nan::Null();
+    else
+      argv[2] = Nan::New<String>(req->arg2).ToLocalChecked();
+    if (req->arg3 == nullptr)
+      argv[3] = Nan::Null();
+    else
+      argv[3] = Nan::New<String>(req->arg3).ToLocalChecked();
+    if (req->arg4 == nullptr)
+      argv[4] = Nan::Null();
+    else
+      argv[4] = Nan::New<String>(req->arg4).ToLocalChecked();
+
+    Local<Value> ret = req->runInAsyncScope(
+      Nan::GetCurrentContext()->Global(),
+      req->js_callback.GetFunction(),
+      5,
+      argv
+    ).ToLocalChecked();
+
+    if (ret->IsTrue())
+      req->result = SQLITE_OK;
+    else if (ret->IsFalse())
+      req->result = SQLITE_DENY;
+    else
+      req->result = SQLITE_IGNORE;
+
+    uv_cond_signal(&req->cond);
+    uv_mutex_unlock(&req->mutex);
+  }
+
+  void close() {
+    uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&async);
+    if (uv_is_active(handle) && !uv_is_closing(handle))
+      uv_close(handle, uv_close_callback);
+  }
+
+  SqliteAuthCallback sqlite_auth_callback;
+  Nan::Callback js_callback;
+  uv_async_t async;
+  uv_mutex_t mutex;
+  uv_cond_t cond;
+  unordered_set<int> filter;
+  int match_result;
+  int nomatch_result;
+
+  int code;
+  const char* arg1;
+  const char* arg2;
+  const char* arg3;
+  const char* arg4;
+  int result;
 };
 
 class QueryRequest : public Nan::AsyncResource {
@@ -780,21 +890,152 @@ void InterruptAfter(uv_work_t* req, int status) {
   delete intr_req;
 }
 
-DBHandle::DBHandle() : db_(nullptr), working_(0) {
+int sqlite_authorizer(void* baton, int code, const char* arg1, const char* arg2,
+                      const char* arg3, const char* arg4) {
+  AuthorizerRequest* req = static_cast<AuthorizerRequest*>(baton);
+
+  if (req->filter.size() > 0 && req->filter.count(code) == 0)
+    return req->nomatch_result;
+
+  int result;
+  uv_mutex_lock(&req->mutex);
+  req->code = code;
+  req->arg1 = arg1;
+  req->arg2 = arg2;
+  req->arg3 = arg3;
+  req->arg4 = arg4;
+  req->result = -1;
+  int status = uv_async_send(&req->async);
+  assert(status == 0);
+  while (req->result == -1)
+    uv_cond_wait(&req->cond, &req->mutex);
+  result = req->result;
+  uv_mutex_unlock(&req->mutex);
+  return result;
+}
+
+int sqlite_authorizer_simple(void* baton, int code, const char* arg1,
+                             const char* arg2, const char* arg3,
+                             const char* arg4) {
+  AuthorizerRequest* req = static_cast<AuthorizerRequest*>(baton);
+  return (
+    req->filter.size() > 0 && req->filter.count(code) > 0
+    ? req->match_result
+    : req->nomatch_result
+  );
+}
+
+DBHandle::DBHandle() : db_(nullptr), working_(0), authorizeReq(nullptr) {
 }
 DBHandle::~DBHandle() {
-  sqlite3_close_v2(db_);
+  if (db_)
+    sqlite3_close_v2(db_);
   makeRowFn.Reset();
   makeObjectRowFn.Reset();
+  if (authorizeReq)
+    authorizeReq->close();
 }
 
 NAN_METHOD(DBHandle::New) {
   if (!info.IsConstructCall())
     return Nan::ThrowError("Use `new` to create instances");
+
   DBHandle* obj = new DBHandle();
   obj->Wrap(info.This());
   obj->makeRowFn.Reset(Local<Function>::Cast(info[0]));
   obj->makeObjectRowFn.Reset(Local<Function>::Cast(info[1]));
+
+  Local<Value> fn = info[2];
+  Local<Value> filter = info[3];
+  Local<Value> match_result = info[4];
+  Local<Value> nomatch_result = info[5];
+
+  if (fn->IsFunction()) {
+    obj->authorizeReq = new AuthorizerRequest(
+      sqlite_authorizer,
+      Local<Function>::Cast(fn)
+    );
+    if (!filter->IsUndefined()) {
+      if (!filter->IsArray()) {
+        delete obj;
+        return Nan::ThrowError("Invalid authorizer filter value");
+      }
+
+      Local<Array> filter_arr = Local<Array>::Cast(filter);
+      for (uint32_t i = 0; i < filter_arr->Length(); ++i) {
+        Local<Value> val = Nan::Get(filter_arr, i).ToLocalChecked();
+        if (!val->IsUint32()) {
+          delete obj;
+          return Nan::ThrowError("Invalid authorizer filter array value");
+        }
+        int32_t num_val = Nan::To<int32_t>(val).FromJust();
+        if (num_val < 0) {
+          delete obj;
+          return Nan::ThrowError("Invalid authorizer filter array value");
+        }
+        obj->authorizeReq->filter.insert(num_val);
+      }
+
+      if (nomatch_result->IsTrue()) {
+        obj->authorizeReq->nomatch_result = SQLITE_OK;
+      } else if (nomatch_result->IsFalse()) {
+        obj->authorizeReq->nomatch_result = SQLITE_DENY;
+      } else if (nomatch_result->IsNull()) {
+        obj->authorizeReq->nomatch_result = SQLITE_IGNORE;
+      } else {
+        delete obj;
+        return Nan::ThrowError("Invalid authorizer no-match result value");
+      }
+    }
+  } else if (fn->IsTrue()) {
+    obj->authorizeReq = new AuthorizerRequest(sqlite_authorizer_simple);
+    if (!filter->IsUndefined()) {
+      if (!filter->IsArray()) {
+        delete obj;
+        return Nan::ThrowError("Invalid authorizer filter value");
+      }
+
+      Local<Array> filter_arr = Local<Array>::Cast(filter);
+      for (uint32_t i = 0; i < filter_arr->Length(); ++i) {
+        Local<Value> val = Nan::Get(filter_arr, i).ToLocalChecked();
+        if (!val->IsUint32()) {
+          delete obj;
+          return Nan::ThrowError("Invalid authorizer filter array value");
+        }
+        int32_t num_val = Nan::To<int32_t>(val).FromJust();
+        if (num_val < 0) {
+          delete obj;
+          return Nan::ThrowError("Invalid authorizer filter array value");
+        }
+        obj->authorizeReq->filter.insert(num_val);
+      }
+    }
+
+    if (nomatch_result->IsTrue()) {
+      obj->authorizeReq->nomatch_result = SQLITE_OK;
+    } else if (nomatch_result->IsFalse()) {
+      obj->authorizeReq->nomatch_result = SQLITE_DENY;
+    } else if (nomatch_result->IsNull()) {
+      obj->authorizeReq->nomatch_result = SQLITE_IGNORE;
+    } else {
+      delete obj;
+      return Nan::ThrowError("Invalid authorizer no-match result value");
+    }
+
+    if (obj->authorizeReq->filter.size() > 0) {
+      if (match_result->IsTrue()) {
+        obj->authorizeReq->match_result = SQLITE_OK;
+      } else if (match_result->IsFalse()) {
+        obj->authorizeReq->match_result = SQLITE_DENY;
+      } else if (match_result->IsNull()) {
+        obj->authorizeReq->match_result = SQLITE_IGNORE;
+      } else {
+        delete obj;
+        return Nan::ThrowError("Invalid authorizer match result value");
+      }
+    }
+  }
+
   info.GetReturnValue().Set(info.This());
 }
 
@@ -834,6 +1075,16 @@ NAN_METHOD(DBHandle::Open) {
                           nullptr);
   if (res != SQLITE_OK)
     return Nan::ThrowError(sqlite3_errstr(res));
+
+  if (self->authorizeReq) {
+    res = sqlite3_set_authorizer(
+      self->db_,
+      self->authorizeReq->sqlite_auth_callback,
+      self->authorizeReq
+    );
+    if (res != SQLITE_OK)
+      return Nan::ThrowError(sqlite3_errstr(res));
+  }
 }
 
 NAN_METHOD(DBHandle::Query) {
@@ -959,6 +1210,10 @@ NAN_METHOD(DBHandle::Close) {
   int res = sqlite3_close_v2(self->db_);
   if (res != SQLITE_OK)
     return Nan::ThrowError(sqlite3_errstr(res));
+  if (self->authorizeReq) {
+    self->authorizeReq->close();
+    self->authorizeReq = nullptr;
+  }
 
   self->db_ = nullptr;
 }

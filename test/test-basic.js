@@ -4,7 +4,11 @@ const assert = require('assert');
 const { mkdirSync, rmdirSync, unlinkSync } = require('fs');
 const { join } = require('path');
 
-const { Database, version } = require(join(__dirname, '..', 'lib'));
+const {
+  ACTION_CODES,
+  Database,
+  version,
+} = require(join(__dirname, '..', 'lib'));
 
 const { series } = require(join(__dirname, 'common.js'));
 
@@ -143,6 +147,277 @@ series([
       db.close();
       cb();
     });
+  },
+  (cb) => {
+    // Test basic authorizer (allow all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+      [ ACTION_CODES.READ, 'generate_series', 'value', 'main', null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [
+      { value: '25' }, { value: '50' }, { value: '75' }, { value: '100' },
+    ];
+    db = new Database(':memory:', (...args) => {
+      actualAuth.push(args);
+      return true;
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test basic authorizer (ignore READs)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+      [ ACTION_CODES.READ, 'generate_series', 'value', 'main', null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [
+      { value: null }, { value: null }, { value: null }, { value: null },
+    ];
+    db = new Database(':memory:', (...args) => {
+      actualAuth.push(args);
+      if (args[0] === ACTION_CODES.SELECT)
+        return true;
+      return null;
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test basic authorizer (ignore all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [];
+    db = new Database(':memory:', (...args) => {
+      actualAuth.push(args);
+      return null;
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test basic authorizer (deny all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+    ];
+    const actualAuth = [];
+    db = new Database(':memory:', (...args) => {
+      actualAuth.push(args);
+      return false;
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err) => {
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert(err instanceof Error);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer (allow all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+      [ ACTION_CODES.READ, 'generate_series', 'value', 'main', null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [
+      { value: '25' }, { value: '50' }, { value: '75' }, { value: '100' },
+    ];
+    db = new Database(':memory:', {
+      callback: (...args) => {
+        actualAuth.push(args);
+        return true;
+      },
+      filter: [ ACTION_CODES.SELECT, ACTION_CODES.READ ],
+      filterNoMatchResult: false,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer (ignore READs)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+      [ ACTION_CODES.READ, 'generate_series', 'value', 'main', null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [
+      { value: null }, { value: null }, { value: null }, { value: null },
+    ];
+    db = new Database(':memory:', {
+      callback: (...args) => {
+        actualAuth.push(args);
+        if (args[0] === ACTION_CODES.SELECT)
+          return true;
+        return null;
+      },
+      filter: [ ACTION_CODES.SELECT, ACTION_CODES.READ ],
+      filterNoMatchResult: false,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer (ignore all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+    ];
+    const actualAuth = [];
+    const expectedRows = [];
+    db = new Database(':memory:', {
+      callback: (...args) => {
+        actualAuth.push(args);
+        return null;
+      },
+      filter: [ ACTION_CODES.SELECT, ACTION_CODES.READ ],
+      filterNoMatchResult: false,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer (deny all)
+    const expectedAuth = [
+      [ ACTION_CODES.SELECT, null, null, null, null ],
+    ];
+    const actualAuth = [];
+    db = new Database(':memory:', {
+      callback: (...args) => {
+        actualAuth.push(args);
+        return false;
+      },
+      filter: [ ACTION_CODES.SELECT, ACTION_CODES.READ ],
+      filterNoMatchResult: false,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      assert.strictEqual(actualAuth.length, expectedAuth.length);
+      assert.deepStrictEqual(actualAuth, expectedAuth);
+      assert(err instanceof Error);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer, no cb (allow SELECTs, ignore others)
+    const expectedRows = [
+      { value: null }, { value: null }, { value: null }, { value: null },
+    ];
+    db = new Database(':memory:', {
+      filter: [ ACTION_CODES.SELECT ],
+      filterMatchResult: true,
+      filterNoMatchResult: null,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      if (err)
+        return cb(err);
+      assert.strictEqual(rows.length, expectedRows.length);
+      assert.deepStrictEqual(rows, expectedRows);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer, no cb (deny all)
+    db = new Database(':memory:', {
+      filter: [],
+      filterMatchResult: true,
+      filterNoMatchResult: false,
+    });
+    db.open();
+    db.query('SELECT * FROM generate_series(25,100,25)', (err, rows) => {
+      assert(err instanceof Error);
+      db.close();
+      cb();
+    });
+  },
+  (cb) => {
+    // Test advanced authorizer, no cb, missing filter non-match result
+    assert.throws(() => new Database(':memory:', { filter: [] }));
+    // Test advanced authorizer, no cb, invalid filters
+    assert.throws(() => {
+      new Database(':memory:', { filter: {}, filterNoMatchResult: true });
+    });
+    assert.throws(() => {
+      new Database(':memory:', { filter: true, filterNoMatchResult: true });
+    });
+    assert.throws(() => {
+      new Database(':memory:', { filter: false, filterNoMatchResult: true });
+    });
+    assert.throws(() => {
+      new Database(':memory:', { filter: null, filterNoMatchResult: true });
+    });
+    assert.throws(() => {
+      new Database(':memory:', {
+        filter: () => {},
+        filterNoMatchResult: true,
+      });
+    });
+    // Test advanced authorizer, no cb, invalid filters non-match result
+    assert.throws(() => new Database(':memory:', { filterNoMatchResult: 0 }));
+    assert.throws(() => {
+      new Database(':memory:', { filterNoMatchResult: undefined });
+    });
+    cb();
   },
   (cb) => {
     const basePath = join(__dirname, 'tmp');
