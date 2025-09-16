@@ -312,6 +312,18 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
     `actionCode` and will either be `null` or a string. See the notes [here][1]
     to discover what the values are for each `actionCode`.
 
+    The return values of callbacks and the values of `filterMatchResult` and
+    `filterNoMatchResult` have the following mapping to the underlying SQLite
+    authorizer values:
+
+    * `true` => `SQLITE_OK`
+
+    * `false` => `SQLITE_DENY`
+
+    * `null` => `SQLITE_IGNORE`
+
+    The meaning of these values can be found [here][1].
+
 * autoCommitEnabled() - *boolean* - Returns whether the opened database
   currently has auto-commit enabled.
 
