@@ -189,7 +189,7 @@ my Linux desktop:
 
 * [node.js](http://nodejs.org/)
   * Windows: node v12.x or newer
-  * All other platforms: node v10.7.0 or newer
+  * All other platforms: Latest node v10.x or newer
 * An appropriate build environment -- see [node-gyp's documentation](https://github.com/nodejs/node-gyp/blob/main/README.md)
 
 
