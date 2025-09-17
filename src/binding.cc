@@ -51,6 +51,10 @@ typedef struct {
   void* val;
 } RowValue;
 
+void free_blob(char* data, void* hint) {
+  free(data);
+}
+
 class BindValueBlob {
   public:
     BindValueBlob(Local<Value>& buf_) {
@@ -123,6 +127,7 @@ public:
   AuthorizerRequest(SqliteAuthCallback cb)
     : Nan::AsyncResource("esqlite:AuthorizerRequest") {
     sqlite_auth_callback = cb;
+    async.data = nullptr;
   }
   AuthorizerRequest(SqliteAuthCallback cb, Local<Function> js_cb)
     : Nan::AsyncResource("esqlite:AuthorizerRequest"), match_result(-1) {
@@ -199,9 +204,11 @@ public:
   }
 
   void close() {
-    uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&async);
-    if (uv_is_active(handle) && !uv_is_closing(handle))
-      uv_close(handle, uv_close_callback);
+    if (async.data != nullptr) {
+      uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&async);
+      if (uv_is_active(handle) && !uv_is_closing(handle))
+        uv_close(handle, uv_close_callback);
+    }
   }
 
   SqliteAuthCallback sqlite_auth_callback;
@@ -806,6 +813,11 @@ void QueryAfter(uv_work_t* req, int status) {
                   val = Nan::NewBuffer(
                     static_cast<char*>(query_req->results[i][j][k].val),
                     query_req->results[i][j][k].len
+#ifdef _MSC_VER
+                    ,
+                    free_blob,
+                    nullptr
+#endif
                   ).ToLocalChecked();
                   break;
                 }
