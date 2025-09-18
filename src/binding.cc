@@ -208,6 +208,8 @@ public:
       uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&async);
       if (uv_is_active(handle) && !uv_is_closing(handle))
         uv_close(handle, uv_close_callback);
+    } else {
+      delete this;
     }
   }
 
