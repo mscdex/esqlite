@@ -110,8 +110,8 @@ class DBHandle : public Nan::ObjectWrap {
   static NAN_METHOD(AutoCommit);
   static NAN_METHOD(Interrupt);
   static NAN_METHOD(Close);
-  static inline Nan::Persistent<Function> & constructor() {
-    static Nan::Persistent<Function> my_constructor;
+  static inline Eternal<Function> & constructor() {
+    static Eternal<Function> my_constructor;
     return my_constructor;
   }
 
@@ -1268,11 +1268,10 @@ NAN_MODULE_INIT(init) {
   Nan::SetPrototypeMethod(tpl, "interrupt", DBHandle::Interrupt);
   Nan::SetPrototypeMethod(tpl, "close", DBHandle::Close);
 
-  DBHandle::constructor().Reset(Nan::GetFunction(tpl).ToLocalChecked());
+  Local<Function> ctor = Nan::GetFunction(tpl).ToLocalChecked();
+  DBHandle::constructor().Set(Nan::GetCurrentContext()->GetIsolate(), ctor);
 
-  Nan::Set(target,
-           Nan::New("DBHandle").ToLocalChecked(),
-           Nan::GetFunction(tpl).ToLocalChecked());
+  Nan::Set(target, Nan::New("DBHandle").ToLocalChecked(), ctor);
 
   Nan::Export(target, "version", Version);
 }
