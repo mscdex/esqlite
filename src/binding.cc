@@ -308,12 +308,12 @@ class DBHandle : public Nan::ObjectWrap {
 class AuthorizerRequest : public Nan::AsyncResource {
 public:
   AuthorizerRequest(SqliteAuthCallback cb)
-    : Nan::AsyncResource("esqlite:AuthorizerRequest") {
-    sqlite_auth_callback = cb;
+    : Nan::AsyncResource("esqlite:AuthorizerRequestNoJSCB") {
     async.data = nullptr;
+    sqlite_auth_callback = cb;
   }
   AuthorizerRequest(SqliteAuthCallback cb, Local<Function> js_cb)
-    : Nan::AsyncResource("esqlite:AuthorizerRequest"), match_result(-1) {
+    : Nan::AsyncResource("esqlite:AuthorizerRequestJSCB"), match_result(-1) {
     int status = uv_mutex_init(&mutex);
     assert(status == 0);
 
@@ -705,7 +705,6 @@ void QueryWork(uv_work_t* req) {
     query_req->last_status = StatementStatus::Incomplete;
     return;
   }
-
   if (res == SQLITE_DONE) {
     query_req->last_status = StatementStatus::Complete;
   } else {
@@ -713,6 +712,7 @@ void QueryWork(uv_work_t* req) {
     query_req->last_error = strdup(sqlite3_errmsg(query_req->handle_ptr->db_));
     query_req->sqlite_status = res;
   }
+
   sqlite3_finalize(query_req->cur_stmt);
   query_req->cur_stmt = nullptr;
 }
@@ -1004,11 +1004,14 @@ int sqlite_authorizer(void* baton, int code, const char* arg1, const char* arg2,
   req->arg3 = arg3;
   req->arg4 = arg4;
   req->result = -1;
+
   int status = uv_async_send(&req->async);
   assert(status == 0);
+
   while (req->result == -1)
     uv_cond_wait(&req->cond, &req->mutex);
   result = req->result;
+
   uv_mutex_unlock(&req->mutex);
   return result;
 }
@@ -1057,7 +1060,6 @@ NAN_METHOD(DBHandle::New) {
     Local<Function>::Cast(info[6])
   );
   obj->Wrap(info.This());
-  //~ obj->Ref();
 
   if (auth_fn->IsFunction()) {
     obj->authorizeReq = new AuthorizerRequest(
@@ -1276,6 +1278,7 @@ NAN_METHOD(DBHandle::Query) {
 
   ++self->working_;
   self->cur_req->active = true;
+
   int status = uv_queue_work(
     uv_default_loop(),
     &self->cur_req->request,
@@ -1323,7 +1326,6 @@ NAN_METHOD(DBHandle::Abort) {
     return Nan::ThrowTypeError("Complete abort argument must be a boolean");
   if (!info[1]->IsFunction())
     return Nan::ThrowTypeError("Callback argument must be a function");
-
 
   QueryRequest* req = self->cur_req;
   if (self->db_ && req && !req->active) {
