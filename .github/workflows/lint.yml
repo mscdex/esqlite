@@ -22,6 +22,6 @@ jobs:
       - name: Check Node.js version
         run: node -pe process.versions
       - name: Install ESLint + ESLint configs/plugins
-        run: npm install --only=dev
+        run: npm install --omit=prod --include=dev --ignore-scripts
       - name: Lint files
         run: npm run lint
