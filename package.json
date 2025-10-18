@@ -9,7 +9,7 @@
     "nan": "^2.23.0"
   },
   "devDependencies": {
-    "@mscdex/eslint-config": "^1.1.0",
+    "@mscdex/eslint-config": "^1.1.1",
     "eslint": "^7.0.0"
   },
   "scripts": {
