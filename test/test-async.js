@@ -18,6 +18,24 @@ let supportsAsyncDispose = false;
   }
 }
 
+if (!Promise.allSettled) {
+  // Polyfill for node pre-v12.9.0
+  Promise.allSettled = async (iterable) => {
+    const results = [];
+    for (const promise of iterable) {
+      try {
+        const value = await promise;
+        results.push({ status: 'fulfilled', value });
+      } catch (reason) {
+        results.push({ status: 'rejected', reason });
+      }
+    }
+    return results;
+	};
+}
+
+// =============================================================================
+
 test(async () => {
   const db = new Database(':memory:');
   db.open();
