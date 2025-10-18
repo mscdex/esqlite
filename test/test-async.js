@@ -298,7 +298,7 @@ test(async () => {
   const iter = db.queryMultiAsync([
     'SELECT * FROM generate_series(10,100,10)',
     'SELECT * FROM generate_series(1,10,2)',
-  ].join(';'), { abortAllOnBreak: false });
+  ].join(';'), { abortType: 'none' });
   for await (const stmt of iter) {
     results.push(await stmt.execute(1));
     break;
@@ -338,7 +338,7 @@ test(async () => {
   const iter = db.queryMultiAsync([
     'SELECT * FROM generate_series(10,100,10)',
     'SELECT * FROM generate_series(1,10,2)',
-  ].join(';'), { abortAllOnBreak: false, abortOnBreak: true });
+  ].join(';'), { abortType: 'current' });
   for await (const stmt of iter) {
     results.push(await stmt.execute(1));
     break;

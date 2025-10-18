@@ -413,6 +413,15 @@ const { Database } = require('esqlite');
       statement(s) whose values come from `PREPARE_FLAGS`.
       **Default:** (no flags)
 
+    * **abortType** - _string_ - Sets the default implicit abort behavior when
+      breaking out of a `for await` loop. Can be one of:
+
+      * `'all'` - Abort current and any remaining statements
+
+      * `'current'` - Abort only current statement
+
+      * `'none'` - Do nothing
+
     * **values** - *mixed* - Either an object containing named bind parameters and
       their associated values or an array containing values for nameless/ordered
       bind parameters. **Default:** (none)
@@ -428,19 +437,18 @@ const { Database } = require('esqlite');
       statement(s) whose values come from `PREPARE_FLAGS`.
       **Default:** (no flags)
 
+    * **abortType** - _string_ - Sets the default implicit abort behavior when
+      breaking out of a `for await` loop. Can be one of:
+
+      * `'all'` - Abort current and any remaining statements
+
+      * `'current'` - Abort only current statement
+
+      * `'none'` - Do nothing
+
     * **values** - _mixed_ - Either an object containing named bind parameters and
       their associated values or an array containing values for nameless/ordered
       bind parameters. **Default:** (none)
-
-    * **abortAllOnBreak** - _boolean_ - Set to `true` to abort all statements when
-      the iterator is implicitly or explicitly aborted. **Default:** `true`
-
-    * **abortOnBreak** - _boolean_ - Set to `true` to abort only the current
-      statement when the iterator is implicitly or explicitly aborted. This
-      option is only considered if `abortAllOnBreak` is set to `false`. If
-      `abortAllOnBreak` is set to `false` and `abortOnBreak` is not `true`,
-      then no statements will be aborted.
-      **Default:** `false`
 
   If using nameless/ordered values, then an array `values` may be passed
   directly in `query()`.
@@ -459,12 +467,17 @@ const { Database } = require('esqlite');
     when the requested number of rows have been retrieved or the statement has
     finished execution, whichever happens first.
 
-  * **iterate**([< _integer_ >rowCount]) - _AsyncIterator_ - Returns an async
-    iterator that requests the given number of rows instead of the default of
-    one row. If `rowCount` is not given, all rows left for the statement will be
-    retrieved. The returned promise is resolved when the requested number of
-    rows have been retrieved or the statement has finished execution, whichever
-    happens first.
+  * **setAbortType**(< _string_ >abortType) - _(void)_ - Sets the statement's
+    implicit abort behavior when breaking out of `for await` loops.
+
+  * **iterate**([< _integer_ >rowCount][, < _string_ >abortType]) - _AsyncIterator_ -
+    Returns an independent async iterator that optionally requests a given number
+    of rows (instead of the default of one row) and optionally sets the implicit
+    abort behavior when breaking out of `for await` loops using this iterator.
+    If `rowCount` is not given, all rows left for the statement will be retrieved.
+    If `abortType` is not given, the `abortType` is inherited from the statement.
+    The returned promise is resolved when the requested number of rows have been
+    retrieved or the statement has finished execution, whichever happens first.
 
 ## `StatementIterator` methods
 
@@ -474,5 +487,8 @@ const { Database } = require('esqlite');
     returned promise is resolved when either any/all statements have been
     successfully aborted, according to the abort behavior option passed to
     `queryMultiAsync()`.
+
+  * **setAbortType**(< _string_ >abortType) - _(void)_ - Sets the iterator's
+    implicit abort behavior when breaking out of `for await` loops.
 
 [1]: https://www.sqlite.org/c3ref/c_alter_table.html
