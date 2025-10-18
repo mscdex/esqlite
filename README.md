@@ -207,7 +207,8 @@ const { Database } = require('esqlite');
 const db = new Database('/path/to/database');
 db.open();
 db.query(`PRAGMA key = 'my passphrase'`, (err) => {
-  if (err) throw err;
+  if (err)
+    throw err;
 
   // Perform queries as normal ...
 
@@ -225,7 +226,8 @@ db.open();
 
 // Using nameless/ordered parameters
 db.query('SELECT * FROM posts WHERE id = ?', [1234], (err, rows) => {
-  if (err) throw err;
+  if (err)
+    throw err;
 
   db.close();
 });
@@ -233,10 +235,45 @@ db.query('SELECT * FROM posts WHERE id = ?', [1234], (err, rows) => {
 // Using named parameters
 const values = { id: 1234 };
 db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
-  if (err) throw err;
+  if (err)
+    throw err;
 
   db.close();
 });
+```
+
+* Streaming rows
+```js
+const { Database } = require('esqlite');
+
+(async () => {
+  const db = new Database('/path/to/database');
+  db.open();
+
+  // Stream rows one at a time
+  const stmt =
+    db.queryAsync('SELECT created, title FROM posts ORDER BY created DESC');
+  for await (const rows of stmt)
+    console.log(rows);
+
+  // Stream rows five at a time
+  const stmt =
+    db.queryAsync('SELECT created, title FROM posts ORDER BY created DESC');
+  for await (const rows of stmt.iterate(5))
+    console.log(rows);
+
+  // Execute multiple statements, streaming five rows at a time from each
+  const iter = db.queryMultiAsync(`
+    SELECT title FROM posts ORDER BY created DESC;
+    SELECT title FROM posts ORDER BY title ASC
+  `);
+  for await (const stmt of iter) {
+    for await (const rows of stmt.iterate(5))
+      console.log(rows);
+  }
+
+  db.close();
+})();
 ```
 
 
@@ -244,56 +281,54 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
 
 ## Exports
 
-* `Database` - A class that represents a connection to an SQLite database.
+* **Database** - A class that represents a connection to an SQLite database.
 
-* `ACTION_CODES` - *object* - Contains currently known SQLite action codes as
-                              seen [here][1], keyed on the name minus the
-                              `SQLITE_` prefix.
+* **ACTION_CODES** - _object_ - Contains currently known SQLite action codes as
+  seen [here][1], keyed on the name minus the `SQLITE_` prefix.
 
-* `OPEN_FLAGS` - *object* - Contains various flags that can be passed to
-                            `database.open()`:
+* **OPEN_FLAGS** - _object_ - Contains various flags that can be passed to
+  `database.open()`:
 
-    * `CREATE` - The database is created if it does not exist.
-    * `MEMORY` - The database will be opened as an in-memory database. The
-                 database is named by the `filename` argument passed to the
-                 `Database` constructor for the purposes of cache-sharing if
-                 shared cache mode is enabled, otherwise the `filename` is
-                 ignored.
-    * `NOFOLLOW` - When opening the database, the database path is not allowed
-                   to be a symbolic link.
-    * `PRIVATECACHE` - The database is opened with shared cache disabled.
-    * `READONLY` - The database is opened in read-only mode. If the database
-                   does not already exist, an error is thrown.
-    * `READWRITE` - The database is opened for reading and writing if possible,
-                    or reading only if the file is write protected by the
-                    operating system. In either case the database must already
-                    exist, otherwise an error is thrown.
-    * `SHAREDCACHE` - The database is opened with shared cache enabled.
+    * **CREATE** - The database is created if it does not exist.
+    * **MEMORY** - The database will be opened as an in-memory database. The
+      database is named by the `filename` argument passed to the `Database`
+      constructor for the purposes of cache-sharing if shared cache mode is
+      enabled, otherwise the `filename` is ignored.
+    * **NOFOLLOW** - When opening the database, the database path is not allowed
+      to be a symbolic link.
+    * **PRIVATECACHE** - The database is opened with shared cache disabled.
+    * **READONLY** - The database is opened in read-only mode. If the database
+      does not already exist, an error is thrown.
+    * **READWRITE** - The database is opened for reading and writing if
+      possible, or reading only if the file is write protected by the operating
+      system. In either case the database must already exist, otherwise an error
+      is thrown.
+    * **SHAREDCACHE** - The database is opened with shared cache enabled.
 
-* `PREPARE_FLAGS` - *object* - Contains various flags related to query
-                               preparation that can be passed to `query()`:
+* **PREPARE_FLAGS** - _object_ - Contains various flags related to query
+  preparation that can be passed to `query()`:
 
-    * `NO_VTAB` - Causes the query to fail if the statement uses any virtual
-                  tables.
+    * **NO_VTAB** - Causes the query to fail if the statement uses any virtual
+      tables.
 
-* `version` - *string* - Contains the SQLite and SQLite3MultipleCiphers
-                         versions.
+* **version** - _string_ - Contains the SQLite and SQLite3MultipleCiphers
+  versions.
 
 ---
 
 ## `Database` methods
 
-* Database(< _string_ >path[, < _mixed_ >authorizer]) - Creates a new `Database`
-  object for operating on the database located at `path`. If specified,
-  `authorizer` must be one of:
+* **(constructor)**(< _string_ >path[, < _mixed_ >authorizer]) - Creates a new
+  `Database` object for operating on the database located at `path`. If
+   specified, `authorizer` must be one of:
 
-    * *function* - A callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
+    * _function_ - A callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
 
-    * *object*
+    * _object_
 
-      * `callback` - *function* - An optional callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
+      * **callback** - _function_ - An optional callback with signature: (< _integer_ >actionCode, < _mixed_ >arg1, < _mixed_ >arg2, < _mixed_ >arg3, < _mixed_ >arg4)
 
-      * `filter` - *array* - An array containing action code values. If
+      * **filter** - _array_ - An array containing action code values. If
         `callback` is provided, only these action codes will be passed to the
         `callback` and all others will be automatically handled according to the
         value in `filterNoMatchResult`. If `callback` is *not* provided, then
@@ -301,10 +336,10 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
         in `filterMatchResult` and all others according to the value in
         `filterNoMatchResult`.
 
-      * `filterMatchResult` - *mixed* - If `callback` is not provided, must be
+      * **filterMatchResult** - _mixed_ - If `callback` is not provided, must be
          one of: `true`, `false`, `null`.
 
-      * `filterNoMatchResult` - *mixed* - Must be one of: `true`, `false`, `null`.
+      * **filterNoMatchResult** - _mixed_ - Must be one of: `true`, `false`, `null`.
 
     `actionCode` values can generally be found [here][1].
 
@@ -324,24 +359,24 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
 
     The meaning of these values can be found [here][1].
 
-* autoCommitEnabled() - *boolean* - Returns whether the opened database
+* **autoCommitEnabled**() - _boolean_ - Returns whether the opened database
   currently has auto-commit enabled.
 
-* close() - *(void)* - Closes the database.
+* **close**() - _(void)_ - Closes the database.
 
-* end() - *(void)* - Automatically closes the database when the query queue is
-  empty. If the queue is empty when `end()` is called, then the database is
+* **end**() - _(void)_ - Automatically closes the database when the query queue
+  is empty. If the queue is empty when `end()` is called, then the database is
   immediately closed.
 
-* interrupt(< _function_ >callback) - *(void)* -  Interrupts the currently
+* **interrupt**(< _function_ >callback) - _(void)_ -  Interrupts the currently
   running query. `callback` has no arguments and is called after any query has
   been interrupted.
 
-* open([ < _integer_ >flags ]) - *(void)* -  Opens the database with optional
+* **open**([ < _integer_ >flags ]) - _(void)_ -  Opens the database with optional
   flags whose values come from `OPEN_FLAGS`.
   **Default `flags`:** `CREATE | READWRITE`
 
-* query(< _string_ >sql[, < _object_ >options][, < _array_ >values][, < _function_ >callback) -
+* **query**(< _string_ >sql[, < _object_ >options][, < _array_ >values][, < _function_ >callback]) - _(void)_ -
   Executes the statement(s) in `sql`. `options` may contain:
 
     * `prepareFlags` - *integer* - Flags to be used during preparation of the
@@ -359,17 +394,85 @@ db.query('SELECT * FROM posts WHERE id = :id', { values }, (err, rows) => {
   If using nameless/ordered values, then an array `values` may be passed
   directly in `query()`.
 
-  If an error occurs while preparing/parsing a statement, further processing
-  of `sql` stops immediately (only relevant when `options.single === false`).
+  `callback` is called when processing of `sql` has finished and has the
+  signature `(err, rows)`.
 
-  `callback` is called when zero or more of the statement(s) finish and has the
-  signature `(err, rows)`. In the case of a single statement, `err` is a
-  possible `Error` instance and `rows` is a possible array of rows returned from
-  the statement. In the case of multiple statements, if any one of the
-  statements ended in an error, then `err` will be an array. If there was no
-  error, `rows` will contain a 2D array of rows, one set of rows per statement.
-  It is possible that the length of `err` and/or `rows` will not equal the
-  number of statements if there was a fatal error that halted execution of any
-  further statements.
+    * In the case of a single statement, `err` is a possible `Error` instance
+      and `rows` is a possible array of rows returned from the statement.
+
+    * In the case of multiple statements, `err` will be an array containing
+      either `null` or `Error` instance values. `rows` will be an array
+      containing zero or more of: `undefined` for statements with a
+      corresponding error or an array of rows for statements with no error.
+
+* **queryAsync**(< _string_ >sql[, < _object_ >options][, < _array_ >values]) - *Statement* -
+  Returns a *Statement* that executes only the first statement in `sql`.
+  `options` may contain:
+
+    * **prepareFlags** - *integer* - Flags to be used during preparation of the
+      statement(s) whose values come from `PREPARE_FLAGS`.
+      **Default:** (no flags)
+
+    * **values** - *mixed* - Either an object containing named bind parameters and
+      their associated values or an array containing values for nameless/ordered
+      bind parameters. **Default:** (none)
+
+  If using nameless/ordered values, then an array `values` may be passed
+  directly in `query()`.
+
+* **queryMultiAsync**(< _string_ >sql[, < _object_ >options][, < _array_ >values]) - *StatementIterator* -
+  Returns a *StatementIterator* that executes all of the statement(s) in `sql`.
+  `options` may contain:
+
+    * **prepareFlags** - _integer_ - Flags to be used during preparation of the
+      statement(s) whose values come from `PREPARE_FLAGS`.
+      **Default:** (no flags)
+
+    * **values** - _mixed_ - Either an object containing named bind parameters and
+      their associated values or an array containing values for nameless/ordered
+      bind parameters. **Default:** (none)
+
+    * **abortAllOnBreak** - _boolean_ - Set to `true` to abort all statements when
+      the iterator is implicitly or explicitly aborted. **Default:** `true`
+
+    * **abortOnBreak** - _boolean_ - Set to `true` to abort only the current
+      statement when the iterator is implicitly or explicitly aborted. This
+      option is only considered if `abortAllOnBreak` is set to `false`. If
+      `abortAllOnBreak` is set to `false` and `abortOnBreak` is not `true`,
+      then no statements will be aborted.
+      **Default:** `false`
+
+  If using nameless/ordered values, then an array `values` may be passed
+  directly in `query()`.
+
+## `Statement` methods
+
+  * (Implements the Async Iterator and Async Dispose interfaces. By default when
+     iterating, only one row will be retrieved at a time.)
+
+  * **abort**() - _Promise_ - Aborts the statement. The returned promise is
+    resolved when the statement has been successfully aborted.
+
+  * **execute**([< _integer_ >rowCount]) - _Promise_ - Executes the statement,
+    optionally requesting `rowCount` rows. If `rowCount` is not given, all rows
+    left for the statement will be retrieved. The returned promise is resolved
+    when the requested number of rows have been retrieved or the statement has
+    finished execution, whichever happens first.
+
+  * **iterate**([< _integer_ >rowCount]) - _AsyncIterator_ - Returns an async
+    iterator that requests the given number of rows instead of the default of
+    one row. If `rowCount` is not given, all rows left for the statement will be
+    retrieved. The returned promise is resolved when the requested number of
+    rows have been retrieved or the statement has finished execution, whichever
+    happens first.
+
+## `StatementIterator` methods
+
+  * (Implements the Async Iterator and Async Dispose interfaces.)
+
+  * **abort**() - _Promise_ - Aborts any/all statements for the query. The
+    returned promise is resolved when either any/all statements have been
+    successfully aborted, according to the abort behavior option passed to
+    `queryMultiAsync()`.
 
 [1]: https://www.sqlite.org/c3ref/c_alter_table.html

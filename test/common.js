@@ -1,80 +1,5 @@
 'use strict';
 
-const { inspect } = require('util');
-
-function noop() {}
-
-const mustCallChecks = [];
-
-function runCallChecks(exitCode) {
-  if (exitCode !== 0) return;
-
-  const failed = mustCallChecks.filter((context) => {
-    if ('minimum' in context) {
-      context.messageSegment = `at least ${context.minimum}`;
-      return context.actual < context.minimum;
-    }
-    context.messageSegment = `exactly ${context.exact}`;
-    return context.actual !== context.exact;
-  });
-
-  failed.forEach((context) => {
-    console.error('Mismatched %s function calls. Expected %s, actual %d.',
-                  context.name,
-                  context.messageSegment,
-                  context.actual);
-    console.error(context.stack.split('\n').slice(2).join('\n'));
-  });
-
-  if (failed.length)
-    process.exit(1);
-}
-
-function mustCall(fn, exact) {
-  return _mustCallInner(fn, exact, 'exact');
-}
-
-function mustCallAtLeast(fn, minimum) {
-  return _mustCallInner(fn, minimum, 'minimum');
-}
-
-function _mustCallInner(fn, criteria = 1, field) {
-  if (process._exiting)
-    throw new Error('Cannot use common.mustCall*() in process exit handler');
-
-  if (typeof fn === 'number') {
-    criteria = fn;
-    fn = noop;
-  } else if (fn === undefined) {
-    fn = noop;
-  }
-
-  if (typeof criteria !== 'number')
-    throw new TypeError(`Invalid ${field} value: ${criteria}`);
-
-  const context = {
-    [field]: criteria,
-    actual: 0,
-    stack: inspect(new Error()),
-    name: fn.name || '<anonymous>'
-  };
-
-  // Add the exit listener only once to avoid listener leak warnings
-  if (mustCallChecks.length === 0)
-    process.on('exit', runCallChecks);
-
-  mustCallChecks.push(context);
-
-  function wrapped(...args) {
-    ++context.actual;
-    return fn.call(this, ...args);
-  }
-
-  wrapped.origFn = fn;
-
-  return wrapped;
-}
-
 function once(fn) {
   if (typeof fn !== 'function')
     throw new TypeError('Missing function');
@@ -87,24 +12,46 @@ function once(fn) {
   };
 }
 
-function series(callbacks) {
-  if (!Array.isArray(callbacks))
-    throw new Error('Missing callbacks array');
-
-  let p = -1;
-  (function next(err) {
-    if (err)
-      throw err;
-    if (++p === callbacks.length)
-      return;
-    const fn = callbacks[p];
-    fn(once(mustCall(next)));
-  })();
+function test(fn) {
+  const line = (new Error()).stack.split('\n')[2].split(':').reverse()[1];
+  const promise = fn();
+  promise.line = line;
+  promise.then(() => {
+    promise.resolved = true;
+  }, (err) => {
+    promise.errored = err;
+  });
+  test.tests.push(promise);
 }
+test.tests = [];
+
+process.once('exit', () => {
+  const errored = test.tests.filter((p) => !!p.errored);
+  const unfinished = test.tests.filter((p) => (!p.resolved && !p.errored));
+  if (errored.length) {
+    console.error('The following tests failed');
+    console.error('==========================');
+    const indent = '    ';
+    for (const promise of errored) {
+      console.error(`  * Test on line #${promise.line}:`);
+      console.error(
+        indent + promise.errored.stack.replace(/\n(?!$)/g, `\n${indent}`)
+      );
+    }
+  }
+  if (unfinished.length) {
+    if (errored.length)
+      console.error('');
+    console.error('The following tests did not finish');
+    console.error('==================================');
+    for (const promise of unfinished)
+      console.error(`  * Test on line #${promise.line}`);
+  }
+  if (errored.length || unfinished.length)
+    process.exitCode = 1;
+});
 
 module.exports = {
-  mustCall,
-  mustCallAtLeast,
   once,
-  series,
+  test,
 };
