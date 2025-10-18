@@ -327,6 +327,8 @@ public:
     );
     assert(status == 0);
     async.data = this;
+    // Don't let this keep the event loop alive
+    uv_unref(reinterpret_cast<uv_handle_t*>(&async));
 
     js_callback.Reset(js_cb);
     sqlite_auth_callback = cb;
