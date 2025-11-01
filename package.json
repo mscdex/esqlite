@@ -1,6 +1,6 @@
 {
   "name": "esqlite",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Brian White <mscdex@mscdex.net>",
   "description": "An SQLite binding for node.js with built-in encryption, focused on simplicity and (async) performance",
   "main": "./lib/index",
