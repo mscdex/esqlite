@@ -751,6 +751,22 @@ test(() => new Promise((resolve, reject) => {
   resolve();
 }));
 
+test(() => new Promise((resolve, reject) => {
+  const db = new Database(':memory:');
+  db.open();
+  const opts = { rowsAsArray: true };
+  db.query(`SELECT 100 foo, 'bar' baz`, opts, (err, rows) => {
+    try {
+      assert.ifError(err);
+      assert.deepStrictEqual(rows, [ [ '100', 'bar' ] ]);
+      db.close();
+    } catch (ex) {
+      return reject(ex);
+    }
+    resolve();
+  });
+}));
+
 test(async () => {
   const basePath = join(__dirname, 'tmp');
   const dbPath = join(basePath, 'encrypted.db');

@@ -18,6 +18,7 @@ using namespace std;
 enum QueryFlag : uint32_t {
   SingleStatement = 0x01,
   NamedParams = 0x02,
+  RowsAsArray = 0x04,
 };
 
 enum StatementStatus : uint8_t {
@@ -279,8 +280,9 @@ class QueryRequest;
 
 class DBHandle : public Nan::ObjectWrap {
  public:
-  explicit DBHandle(Local<Function> make_row_fn_,
+  explicit DBHandle(Local<Function> make_rows_fn_,
                     Local<Function> make_obj_row_fn_,
+                    Local<Function> make_arr_row_fn_,
                     Local<Function> status_callback_);
   ~DBHandle();
 
@@ -299,8 +301,9 @@ class DBHandle : public Nan::ObjectWrap {
   sqlite3* db_;
   size_t working_;
   QueryRequest* cur_req;
-  Nan::Persistent<Function> make_row_fn;
+  Nan::Persistent<Function> make_rows_fn;
   Nan::Persistent<Function> make_obj_row_fn;
+  Nan::Persistent<Function> make_arr_row_fn;
   AuthorizerRequest* authorizeReq;
   Nan::Persistent<Function> status_callback;
 };
@@ -423,7 +426,7 @@ public:
                BindParamsType params_type_,
                void* params_,
                unsigned int prepare_flags_,
-               bool single_stmt_,
+               uint32_t query_flags_,
                size_t initial_max_rows_)
     : Nan::AsyncResource("esqlite:QueryRequest"),
       handle_ptr(handle_ptr_),
@@ -434,9 +437,10 @@ public:
       params(params_),
       bind_list_pos(0),
       prepare_flags(prepare_flags_),
-      single_stmt(single_stmt_),
+      query_flags(query_flags_),
       cur_stmt(nullptr),
       max_rows(initial_max_rows_),
+      col_count(0),
       last_status(StatementStatus::Init),
       sqlite_status(0),
       last_error(nullptr),
@@ -495,11 +499,12 @@ public:
   size_t bind_list_pos;
 
   unsigned int prepare_flags;
-  bool single_stmt;
+  uint32_t query_flags;
 
   sqlite3_stmt* cur_stmt;
   Nan::Persistent<Function> cur_stmt_rowfn;
   size_t max_rows;
+  int col_count;
   StatementStatus last_status;
   int sqlite_status;
   vector<vector<RowValue>> rows;
@@ -525,6 +530,7 @@ void QueryWork(uv_work_t* req) {
       size_t consumed = (new_pos - cur_pos);
       query_req->sql_pos += consumed;
       query_req->sql_remaining -= consumed;
+      query_req->col_count = sqlite3_column_count(query_req->cur_stmt);
       if (res != SQLITE_OK) {
         query_req->last_status = StatementStatus::Error;
         query_req->last_error =
@@ -629,12 +635,11 @@ void QueryWork(uv_work_t* req) {
 
   res = sqlite3_step(query_req->cur_stmt);
   if (res == SQLITE_ROW) {
-    int col_count = sqlite3_data_count(query_req->cur_stmt);
-    if (col_count) {
-      if (is_new) {
-        vector<RowValue> cols(col_count);
+    if (query_req->col_count) {
+      if (is_new && !(query_req->query_flags & QueryFlag::RowsAsArray)) {
+        vector<RowValue> cols(query_req->col_count);
         // Add the column names to the result set
-        for (int i = 0; i < col_count; ++i) {
+        for (int i = 0; i < query_req->col_count; ++i) {
           const char* name = sqlite3_column_name(query_req->cur_stmt, i);
           int len = -1;
           while (name[++len]);
@@ -654,8 +659,8 @@ void QueryWork(uv_work_t* req) {
       // Add the rows to the result set
       size_t row_count = 0;
       do {
-        vector<RowValue> row(col_count);
-        for (int i = 0; i < col_count; ++i) {
+        vector<RowValue> row(query_req->col_count);
+        for (int i = 0; i < query_req->col_count; ++i) {
           switch (sqlite3_column_type(query_req->cur_stmt, i)) {
             case SQLITE_NULL:
               row[i].type = ValueType::Null;
@@ -723,15 +728,19 @@ void QueryAfter(uv_work_t* req, int status) {
   Local<Object> handle = Nan::New(query_req->handle);
   Local<Function> status_callback =
     Nan::New(query_req->handle_ptr->status_callback);
-  Local<Function> make_row_fn = Nan::New(query_req->handle_ptr->make_row_fn);
-  Local<Function> make_obj_row_fn =
-    Nan::New(query_req->handle_ptr->make_obj_row_fn);
+  Local<Function> make_rows_fn = Nan::New(query_req->handle_ptr->make_rows_fn);
+
   --query_req->handle_ptr->working_;
 
   Local<Array> rows;
   if (query_req->rows.size() > 0) {
-    size_t row_start = (query_req->cur_stmt_rowfn.IsEmpty() ? 1 : 0);
-    int ncols = query_req->rows[0].size();
+    size_t row_start = (
+      query_req->cur_stmt_rowfn.IsEmpty()
+        && !(query_req->query_flags & QueryFlag::RowsAsArray)
+      ? 1
+      : 0
+    );
+    int ncols = query_req->col_count;
     size_t nrows = query_req->rows.size() - row_start;
     rows = Nan::New<Array>(nrows);
 
@@ -748,37 +757,52 @@ void QueryAfter(uv_work_t* req, int status) {
 
     Local<Function> rowFn;
     if (query_req->cur_stmt_rowfn.IsEmpty()) {
-      // Create row generator from column names
-      for (int k = 0; k < ncols; ++k) {
-        Local<Value> val;
-        switch (query_req->rows[0][k].type) {
-          case ValueType::String: {
-            char* raw = static_cast<char*>(query_req->rows[0][k].val);
-            size_t len = query_req->rows[0][k].len;
-            if (len < EXTERN_APEX) {
-              // Makes copy
-              val = Nan::New(raw, len).ToLocalChecked();
-              free(raw);
-            } else {
-              // Uses reference to existing memory
-              val = Nan::New(new ExtString(raw, len)).ToLocalChecked();
+      // Create row generator
+      if (!(query_req->query_flags & QueryFlag::RowsAsArray)) {
+        for (int k = 0; k < ncols; ++k) {
+          Local<Value> val;
+          switch (query_req->rows[0][k].type) {
+            case ValueType::String: {
+              char* raw = static_cast<char*>(query_req->rows[0][k].val);
+              size_t len = query_req->rows[0][k].len;
+              if (len < EXTERN_APEX) {
+                // Makes copy
+                val = Nan::New(raw, len).ToLocalChecked();
+                free(raw);
+              } else {
+                // Uses reference to existing memory
+                val = Nan::New(new ExtString(raw, len)).ToLocalChecked();
+              }
+              break;
             }
-            break;
+            case ValueType::StringEmpty:
+              val = Nan::EmptyString();
+              break;
+            default:
+              // Appease compiler
+              break;
           }
-          case ValueType::StringEmpty:
-            val = Nan::EmptyString();
-            break;
-          default:
-            // Appease compiler
-            break;
+          argv[k] = val;
         }
-        argv[k] = val;
+        rowFn = Local<Function>::Cast(
+          query_req->runInAsyncScope(
+            rows,
+            Nan::New(query_req->handle_ptr->make_obj_row_fn),
+            ncols,
+            argv
+          ).ToLocalChecked()
+        );
+      } else {
+        argv[0] = Nan::New(ncols);
+        rowFn = Local<Function>::Cast(
+          query_req->runInAsyncScope(
+            rows,
+            Nan::New(query_req->handle_ptr->make_arr_row_fn),
+            1,
+            argv
+          ).ToLocalChecked()
+        );
       }
-      rowFn = Local<Function>::Cast(
-        query_req->runInAsyncScope(
-          rows, make_obj_row_fn, ncols, argv
-        ).ToLocalChecked()
-      );
       query_req->cur_stmt_rowfn.Reset(rowFn);
     } else {
       rowFn = Nan::New(query_req->cur_stmt_rowfn);
@@ -841,7 +865,7 @@ void QueryAfter(uv_work_t* req, int status) {
             argv[offset++] = val;
           }
         }
-        query_req->runInAsyncScope(rows, make_row_fn, argc, argv);
+        query_req->runInAsyncScope(rows, make_rows_fn, argc, argv);
       }
     }
 
@@ -850,9 +874,11 @@ void QueryAfter(uv_work_t* req, int status) {
 #endif
   }
 
-  bool is_last_stmt =
-    (query_req->sql_remaining == 0 || query_req->single_stmt);
-  Local<Value> argv[3];
+  bool is_last_stmt = (
+    query_req->sql_remaining == 0
+    || (query_req->query_flags & QueryFlag::SingleStatement)
+  );
+  Local<Value> argv[4];
   argv[0] = Nan::New(query_req->last_status);
   argv[1] = Nan::New(is_last_stmt);
   switch (query_req->last_status) {
@@ -884,6 +910,7 @@ void QueryAfter(uv_work_t* req, int status) {
     default:
       Nan::ThrowError("Unexpected init statement status");
   }
+  argv[3] = Nan::New(query_req->col_count);
 
   bool req_done = (
     is_last_stmt && query_req->last_status != StatementStatus::Incomplete
@@ -893,7 +920,7 @@ void QueryAfter(uv_work_t* req, int status) {
   if (req_done)
     query_req->handle_ptr->cur_req = nullptr;
 
-  query_req->runInAsyncScope(handle, status_callback, 3, argv);
+  query_req->runInAsyncScope(handle, status_callback, 4, argv);
 
   if (req_done && !query_req->defer_delete)
     delete query_req;
@@ -1027,19 +1054,22 @@ int sqlite_authorizer_simple(void* baton, int code, const char* arg1,
   );
 }
 
-DBHandle::DBHandle(Local<Function> make_row_fn_,
+DBHandle::DBHandle(Local<Function> make_rows_fn_,
                    Local<Function> make_obj_row_fn_,
+                   Local<Function> make_arr_row_fn_,
                    Local<Function> status_callback_)
   : db_(nullptr), working_(0), cur_req(nullptr), authorizeReq(nullptr) {
-  make_row_fn.Reset(make_row_fn_);
+  make_rows_fn.Reset(make_rows_fn_);
   make_obj_row_fn.Reset(make_obj_row_fn_);
+  make_arr_row_fn.Reset(make_arr_row_fn_);
   status_callback.Reset(status_callback_);
 }
 DBHandle::~DBHandle() {
   if (db_)
     sqlite3_close_v2(db_);
-  make_row_fn.Reset();
+  make_rows_fn.Reset();
   make_obj_row_fn.Reset();
+  make_arr_row_fn.Reset();
   if (authorizeReq)
     authorizeReq->close();
   status_callback.Reset();
@@ -1049,15 +1079,16 @@ NAN_METHOD(DBHandle::New) {
   if (!info.IsConstructCall())
     return Nan::ThrowError("Use `new` to create instances");
 
-  Local<Value> auth_fn = info[2];
-  Local<Value> auth_filter = info[3];
-  Local<Value> auth_match_result = info[4];
-  Local<Value> auth_nomatch_result = info[5];
+  Local<Value> auth_fn = info[3];
+  Local<Value> auth_filter = info[4];
+  Local<Value> auth_match_result = info[5];
+  Local<Value> auth_nomatch_result = info[6];
 
   DBHandle* obj = new DBHandle(
     Local<Function>::Cast(info[0]),
     Local<Function>::Cast(info[1]),
-    Local<Function>::Cast(info[6])
+    Local<Function>::Cast(info[2]),
+    Local<Function>::Cast(info[7])
   );
   obj->Wrap(info.This());
 
@@ -1265,14 +1296,13 @@ NAN_METHOD(DBHandle::Query) {
       params = nullptr;
     }
 
-    bool single_stmt = ((query_flags & QueryFlag::SingleStatement) > 0);
     self->cur_req = new QueryRequest(info.Holder(),
                                      self,
                                      info[0],
                                      params_type,
                                      params,
                                      prepare_flags,
-                                     single_stmt,
+                                     query_flags,
                                      max_rows);
   }
 
@@ -1332,8 +1362,11 @@ NAN_METHOD(DBHandle::Abort) {
     Local<Value> is_abort_all = info[0];
     Local<Function> callback = Local<Function>::Cast(info[1]);
 
-    if (req->sql_remaining == 0 || req->single_stmt || is_abort_all->IsTrue())
+    if (req->sql_remaining == 0
+        || (req->query_flags & QueryFlag::SingleStatement)
+        || is_abort_all->IsTrue()) {
       req->defer_delete = true;
+    }
 
     if (is_abort_all->IsTrue()) {
       // Skip current and any remaining statements

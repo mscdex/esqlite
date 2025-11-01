@@ -379,17 +379,20 @@ const { Database } = require('esqlite');
 * **query**(< _string_ >sql[, < _object_ >options][, < _array_ >values][, < _function_ >callback]) - _(void)_ -
   Executes the statement(s) in `sql`. `options` may contain:
 
-    * `prepareFlags` - *integer* - Flags to be used during preparation of the
+    * **prepareFlags** - _integer_ - Flags to be used during preparation of the
       statement(s) whose values come from `PREPARE_FLAGS`.
       **Default:** (no flags)
 
-    * `single` - *boolean* - Whether only a single statement should be executed
-      from `sql`. This can be useful to help avoid some SQL injection attacks.
-      **Default:** `true`
+    * **single** - _boolean_ - Whether only a single statement should be
+      executed from `sql`. This can be useful to help avoid some SQL injection
+      attacks. **Default:** `true`
 
-    * `values` - *mixed* - Either an object containing named bind parameters and
-      their associated values or an array containing values for nameless/ordered
-      bind parameters. **Default:** (none)
+    * **rowsAsArray** - _boolean_ - If `true`, causes returned rows to be arrays
+      instead of objects keyed on column/alias names. **Default:** `false`
+
+    * **values** - _mixed_ - Either an object containing named bind parameters
+      and their associated values or an array containing values for
+      nameless/ordered bind parameters. **Default:** (none)
 
   If using nameless/ordered values, then an array `values` may be passed
   directly in `query()`.
@@ -409,10 +412,6 @@ const { Database } = require('esqlite');
   Returns a *Statement* that executes only the first statement in `sql`.
   `options` may contain:
 
-    * **prepareFlags** - *integer* - Flags to be used during preparation of the
-      statement(s) whose values come from `PREPARE_FLAGS`.
-      **Default:** (no flags)
-
     * **abortType** - _string_ - Sets the default implicit abort behavior when
       breaking out of a `for await` loop. Can be one of:
 
@@ -422,9 +421,16 @@ const { Database } = require('esqlite');
 
       * `'none'` - Do nothing
 
-    * **values** - *mixed* - Either an object containing named bind parameters and
-      their associated values or an array containing values for nameless/ordered
-      bind parameters. **Default:** (none)
+    * **prepareFlags** - _integer_ - Flags to be used during preparation of the
+      statement(s) whose values come from `PREPARE_FLAGS`.
+      **Default:** (no flags)
+
+    * **rowsAsArray** - _boolean_ - If `true`, causes returned rows to be arrays
+      instead of objects keyed on column/alias names. **Default:** `false`
+
+    * **values** - _mixed_ - Either an object containing named bind parameters
+      and their associated values or an array containing values for
+      nameless/ordered bind parameters. **Default:** (none)
 
   If using nameless/ordered values, then an array `values` may be passed
   directly in `query()`.
@@ -433,10 +439,6 @@ const { Database } = require('esqlite');
   Returns a *StatementIterator* that executes all of the statement(s) in `sql`.
   `options` may contain:
 
-    * **prepareFlags** - _integer_ - Flags to be used during preparation of the
-      statement(s) whose values come from `PREPARE_FLAGS`.
-      **Default:** (no flags)
-
     * **abortType** - _string_ - Sets the default implicit abort behavior when
       breaking out of a `for await` loop. Can be one of:
 
@@ -446,12 +448,25 @@ const { Database } = require('esqlite');
 
       * `'none'` - Do nothing
 
-    * **values** - _mixed_ - Either an object containing named bind parameters and
-      their associated values or an array containing values for nameless/ordered
-      bind parameters. **Default:** (none)
+    * **prepareFlags** - _integer_ - Flags to be used during preparation of the
+      statement(s) whose values come from `PREPARE_FLAGS`.
+      **Default:** (no flags)
+
+    * **rowsAsArray** - _boolean_ - If `true`, causes returned rows to be arrays
+      instead of objects keyed on column/alias names. **Default:** `false`
+
+    * **values** - _mixed_ - Either an object containing named bind parameters
+      and their associated values or an array containing values for
+      nameless/ordered bind parameters. **Default:** (none)
 
   If using nameless/ordered values, then an array `values` may be passed
   directly in `query()`.
+
+## `Statement` properties
+
+  * **colCount** - _integer_ - Once a statement has been successfully executed,
+    this will hold the number of columns returned by the statement, regardless
+    of whether the statement returned any rows.
 
 ## `Statement` methods
 

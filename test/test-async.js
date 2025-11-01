@@ -536,6 +536,31 @@ test(async () => {
   db.close();
 });
 
+test(async () => {
+  const db = new Database(':memory:');
+  db.open();
+
+  let stmt =
+    db.queryAsync(`SELECT 100 foo, 'bar' baz`, { rowsAsArray: true });
+  assert.strictEqual(stmt.colCount, undefined);
+  assert.deepStrictEqual(await stmt.execute(), [
+    [ '100', 'bar' ],
+  ]);
+  assert.strictEqual(stmt.colCount, 2);
+
+  stmt = db.queryAsync('-- foo bar baz', { rowsAsArray: true });
+  assert.strictEqual(stmt.colCount, undefined);
+  assert.strictEqual(await stmt.execute(), undefined);
+  assert.strictEqual(stmt.colCount, 0);
+
+  stmt = db.queryAsync('SELECT 1 WHERE 1 = 2', { rowsAsArray: true });
+  assert.strictEqual(stmt.colCount, undefined);
+  assert.strictEqual(await stmt.execute(), undefined);
+  assert.strictEqual(stmt.colCount, 1);
+
+  db.close();
+});
+
 if (supportsAsyncDispose) {
   test(new Function('assert,Database', `
     return async () => {
