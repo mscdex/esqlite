@@ -4,6 +4,7 @@
   "author": "Brian White <mscdex@mscdex.net>",
   "description": "An SQLite binding for node.js with built-in encryption, focused on simplicity and (async) performance",
   "main": "./lib/index",
+  "bin": "./bin/cli.js",
   "dependencies": {
     "buildcheck": "~0.0.6",
     "nan": "^2.23.0"
@@ -15,7 +16,7 @@
   "scripts": {
     "install": "node buildcheck.js > buildcheck.gypi && node-gyp rebuild",
     "test": "node test/test.js",
-    "lint": "eslint --cache --report-unused-disable-directives --ext=.js .eslintrc.js lib test",
+    "lint": "eslint --cache --report-unused-disable-directives --ext=.js .eslintrc.js bin lib test",
     "lint:fix": "npm run lint -- --fix"
   },
   "engines": {
