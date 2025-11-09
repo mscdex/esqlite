@@ -15,9 +15,9 @@
 
 #define SQLITE3MC_VERSION_MAJOR      2
 #define SQLITE3MC_VERSION_MINOR      2
-#define SQLITE3MC_VERSION_RELEASE    4
+#define SQLITE3MC_VERSION_RELEASE    5
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 2.2.4"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 2.2.5"
 
 #endif
 
@@ -73,9 +73,12 @@ extern "C" {
 #endif
 
 
-#define SQLITE_VERSION        "3.50.4"
-#define SQLITE_VERSION_NUMBER 3050004
-#define SQLITE_SOURCE_ID      "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3"
+#define SQLITE_VERSION        "3.51.0"
+#define SQLITE_VERSION_NUMBER 3051000
+#define SQLITE_SOURCE_ID      "2025-11-04 19:38:17 fb2c931ae597f8d00a37574ff67aeed3eced4e5547f9120744ae4bfa8e74527b"
+#define SQLITE_SCM_BRANCH     "trunk"
+#define SQLITE_SCM_TAGS       "release major-release version-3.51.0"
+#define SQLITE_SCM_DATETIME   "2025-11-04T19:38:17.314Z"
 
 
 SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
@@ -176,6 +179,9 @@ SQLITE_API int sqlite3_exec(
 #define SQLITE_ERROR_MISSING_COLLSEQ   (SQLITE_ERROR | (1<<8))
 #define SQLITE_ERROR_RETRY             (SQLITE_ERROR | (2<<8))
 #define SQLITE_ERROR_SNAPSHOT          (SQLITE_ERROR | (3<<8))
+#define SQLITE_ERROR_RESERVESIZE       (SQLITE_ERROR | (4<<8))
+#define SQLITE_ERROR_KEY               (SQLITE_ERROR | (5<<8))
+#define SQLITE_ERROR_UNABLE            (SQLITE_ERROR | (6<<8))
 #define SQLITE_IOERR_READ              (SQLITE_IOERR | (1<<8))
 #define SQLITE_IOERR_SHORT_READ        (SQLITE_IOERR | (2<<8))
 #define SQLITE_IOERR_WRITE             (SQLITE_IOERR | (3<<8))
@@ -210,6 +216,8 @@ SQLITE_API int sqlite3_exec(
 #define SQLITE_IOERR_DATA              (SQLITE_IOERR | (32<<8))
 #define SQLITE_IOERR_CORRUPTFS         (SQLITE_IOERR | (33<<8))
 #define SQLITE_IOERR_IN_PAGE           (SQLITE_IOERR | (34<<8))
+#define SQLITE_IOERR_BADKEY            (SQLITE_IOERR | (35<<8))
+#define SQLITE_IOERR_CODEC             (SQLITE_IOERR | (36<<8))
 #define SQLITE_LOCKED_SHAREDCACHE      (SQLITE_LOCKED |  (1<<8))
 #define SQLITE_LOCKED_VTAB             (SQLITE_LOCKED |  (2<<8))
 #define SQLITE_BUSY_RECOVERY           (SQLITE_BUSY   |  (1<<8))
@@ -388,6 +396,7 @@ struct sqlite3_io_methods {
 #define SQLITE_FCNTL_RESET_CACHE            42
 #define SQLITE_FCNTL_NULL_IO                43
 #define SQLITE_FCNTL_BLOCK_ON_CONNECT       44
+#define SQLITE_FCNTL_FILESTAT               45
 
 
 #define SQLITE_GET_LOCKPROXYFILE      SQLITE_FCNTL_GET_LOCKPROXYFILE
@@ -721,6 +730,9 @@ SQLITE_API const char *sqlite3_errmsg(sqlite3*);
 SQLITE_API const void *sqlite3_errmsg16(sqlite3*);
 SQLITE_API const char *sqlite3_errstr(int);
 SQLITE_API int sqlite3_error_offset(sqlite3 *db);
+
+
+SQLITE_API int sqlite3_set_errmsg(sqlite3 *db, int errcode, const char *zErrMsg);
 
 
 typedef struct sqlite3_stmt sqlite3_stmt;
@@ -1539,6 +1551,7 @@ SQLITE_API int sqlite3_status64(
 
 
 SQLITE_API int sqlite3_db_status(sqlite3*, int op, int *pCur, int *pHiwtr, int resetFlg);
+SQLITE_API int sqlite3_db_status64(sqlite3*,int,sqlite3_int64*,sqlite3_int64*,int);
 
 
 #define SQLITE_DBSTATUS_LOOKASIDE_USED       0
@@ -1554,7 +1567,8 @@ SQLITE_API int sqlite3_db_status(sqlite3*, int op, int *pCur, int *pHiwtr, int r
 #define SQLITE_DBSTATUS_DEFERRED_FKS        10
 #define SQLITE_DBSTATUS_CACHE_USED_SHARED   11
 #define SQLITE_DBSTATUS_CACHE_SPILL         12
-#define SQLITE_DBSTATUS_MAX                 12
+#define SQLITE_DBSTATUS_TEMPBUF_SPILL       13
+#define SQLITE_DBSTATUS_MAX                 13
 
 
 
@@ -1676,6 +1690,7 @@ SQLITE_API int sqlite3_wal_checkpoint_v2(
 );
 
 
+#define SQLITE_CHECKPOINT_NOOP    -1
 #define SQLITE_CHECKPOINT_PASSIVE  0
 #define SQLITE_CHECKPOINT_FULL     1
 #define SQLITE_CHECKPOINT_RESTART  2
@@ -1784,30 +1799,30 @@ typedef struct sqlite3_snapshot {
 } sqlite3_snapshot;
 
 
-SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_get(
+SQLITE_API int sqlite3_snapshot_get(
   sqlite3 *db,
   const char *zSchema,
   sqlite3_snapshot **ppSnapshot
 );
 
 
-SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_open(
+SQLITE_API int sqlite3_snapshot_open(
   sqlite3 *db,
   const char *zSchema,
   sqlite3_snapshot *pSnapshot
 );
 
 
-SQLITE_API SQLITE_EXPERIMENTAL void sqlite3_snapshot_free(sqlite3_snapshot*);
+SQLITE_API void sqlite3_snapshot_free(sqlite3_snapshot*);
 
 
-SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_cmp(
+SQLITE_API int sqlite3_snapshot_cmp(
   sqlite3_snapshot *p1,
   sqlite3_snapshot *p2
 );
 
 
-SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_recover(sqlite3 *db, const char *zDb);
+SQLITE_API int sqlite3_snapshot_recover(sqlite3 *db, const char *zDb);
 
 
 SQLITE_API unsigned char *sqlite3_serialize(
@@ -1834,6 +1849,30 @@ SQLITE_API int sqlite3_deserialize(
 #define SQLITE_DESERIALIZE_FREEONCLOSE 1
 #define SQLITE_DESERIALIZE_RESIZEABLE  2
 #define SQLITE_DESERIALIZE_READONLY    4
+
+
+SQLITE_API int sqlite3_carray_bind(
+  sqlite3_stmt *pStmt,
+  int i,
+  void *aData,
+  int nData,
+  int mFlags,
+  void (*xDel)(void*)
+);
+
+
+#define SQLITE_CARRAY_INT32     0
+#define SQLITE_CARRAY_INT64     1
+#define SQLITE_CARRAY_DOUBLE    2
+#define SQLITE_CARRAY_TEXT      3
+#define SQLITE_CARRAY_BLOB      4
+
+
+#define CARRAY_INT32     0
+#define CARRAY_INT64     1
+#define CARRAY_DOUBLE    2
+#define CARRAY_TEXT      3
+#define CARRAY_BLOB      4
 
 
 #ifdef SQLITE_OMIT_FLOATING_POINT
@@ -2173,6 +2212,23 @@ SQLITE_API int sqlite3changeset_apply_v2(
   void **ppRebase, int *pnRebase,
   int flags
 );
+SQLITE_API int sqlite3changeset_apply_v3(
+  sqlite3 *db,
+  int nChangeset,
+  void *pChangeset,
+  int(*xFilter)(
+    void *pCtx,
+    sqlite3_changeset_iter *p
+  ),
+  int(*xConflict)(
+    void *pCtx,
+    int eConflict,
+    sqlite3_changeset_iter *p
+  ),
+  void *pCtx,
+  void **ppRebase, int *pnRebase,
+  int flags
+);
 
 
 #define SQLITE_CHANGESETAPPLY_NOSAVEPOINT   0x0001
@@ -2237,6 +2293,23 @@ SQLITE_API int sqlite3changeset_apply_v2_strm(
   int(*xFilter)(
     void *pCtx,
     const char *zTab
+  ),
+  int(*xConflict)(
+    void *pCtx,
+    int eConflict,
+    sqlite3_changeset_iter *p
+  ),
+  void *pCtx,
+  void **ppRebase, int *pnRebase,
+  int flags
+);
+SQLITE_API int sqlite3changeset_apply_v3_strm(
+  sqlite3 *db,
+  int (*xInput)(void *pIn, void *pData, int *pnData),
+  void *pIn,
+  int(*xFilter)(
+    void *pCtx,
+    sqlite3_changeset_iter *p
   ),
   int(*xConflict)(
     void *pCtx,
