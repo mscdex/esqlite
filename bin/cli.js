@@ -88,6 +88,7 @@ const rl = createInterface({
   tabSize: 2,
 });
 
+const queryOpts = { rowsAsArray: true };
 (async () => {
   const sigintHandler = () => {
     db.interrupt(() => {});
@@ -99,12 +100,50 @@ const rl = createInterface({
     source = `Database: ${basename(filename)}`;
   console.log(`esqlite ${version} CLI; To exit type ".exit"; ${source}`);
   rl.prompt();
-  for await (const line of rl) {
-    if (line === '.exit')
-      break;
 
+  readline_loop:
+  for await (let line of rl) {
     rl.once('SIGINT', sigintHandler);
+
+    line_proc:
     try {
+      switch (line) {
+        case '.databases':
+          line = 'SELECT name, file FROM pragma_database_list';
+          break;
+        case '.tables': {
+          let sql = '';
+          const databases = await db.queryAsync(
+            'SELECT name FROM pragma_database_list',
+            queryOpts
+          ).execute();
+          if (!databases || !databases.length)
+            break line_proc;
+          for (const [ name ] of databases) {
+            if (!name)
+              continue;
+            if (sql)
+              sql += ' UNION ALL ';
+            if (name.toLowerCase() === 'main')
+              sql += 'SELECT name FROM ';
+            else
+              sql += `SELECT '${name.replace(/'/g, `''`)}'||'.'||name FROM `;
+            sql += `"${name.replace(/"/g, '""')}".sqlite_schema `;
+            sql += `WHERE type IN ('table', 'view')`;
+            sql += `  AND name NOT LIKE 'sqlite__%' ESCAPE '_'`;
+          }
+          if (sql) {
+            sql += ' ORDER BY 1';
+            line = sql;
+          } else {
+            break line_proc;
+          }
+          break;
+        }
+        case '.exit':
+          break readline_loop;
+      }
+
       let time = process.hrtime.bigint();
       const rows = await db.queryAsync(line).execute();
       time = convertDuration(process.hrtime.bigint() - time);
@@ -123,6 +162,7 @@ const rl = createInterface({
     } catch (ex) {
       console.error(`Query Error: ${ex.message}`);
     }
+
     rl.removeListener('SIGINT', sigintHandler);
 
     rl.prompt();
