@@ -767,6 +767,22 @@ test(() => new Promise((resolve, reject) => {
   });
 }));
 
+test(() => new Promise((resolve, reject) => {
+  const db = new Database(':memory:');
+  db.open();
+  const opts = { rowsAsArray: true };
+  db.query(`SELECT decimal_cmp('-4.5', '-10')`, opts, (err, rows) => {
+    try {
+      assert.ifError(err);
+      assert.deepStrictEqual(rows, [ [ '1' ] ]);
+      db.close();
+    } catch (ex) {
+      return reject(ex);
+    }
+    resolve();
+  });
+}));
+
 test(async () => {
   const basePath = join(__dirname, 'tmp');
   const dbPath = join(basePath, 'encrypted.db');
