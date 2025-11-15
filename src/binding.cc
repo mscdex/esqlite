@@ -1193,11 +1193,11 @@ NAN_METHOD(DBHandle::Open) {
 
   int res = sqlite3_open_v2(*filename, &self->db_, flags, nullptr);
   if (res != SQLITE_OK)
-    return Nan::ThrowError(sqlite3_errstr(res));
+    goto on_err;
 
   res = sqlite3_extended_result_codes(self->db_, 1);
   if (res != SQLITE_OK)
-    return Nan::ThrowError(sqlite3_errstr(res));
+    goto on_err;
 
   // Disable dynamic loading of extensions
   res = sqlite3_db_config(self->db_,
@@ -1205,7 +1205,7 @@ NAN_METHOD(DBHandle::Open) {
                           0,
                           nullptr);
   if (res != SQLITE_OK)
-    return Nan::ThrowError(sqlite3_errstr(res));
+    goto on_err;
 
   // Disable language features that allow ordinary SQL to deliberately corrupt
   // the database
@@ -1214,7 +1214,7 @@ NAN_METHOD(DBHandle::Open) {
                           1,
                           nullptr);
   if (res != SQLITE_OK)
-    return Nan::ThrowError(sqlite3_errstr(res));
+    goto on_err;
 
   if (self->authorizeReq) {
     res = sqlite3_set_authorizer(
@@ -1223,8 +1223,18 @@ NAN_METHOD(DBHandle::Open) {
       self->authorizeReq
     );
     if (res != SQLITE_OK)
-      return Nan::ThrowError(sqlite3_errstr(res));
+      goto on_err;
   }
+
+  return;
+
+on_err:
+  Local<Value> err = Nan::Error(sqlite3_errstr(res));
+  if (self->db_) {
+    sqlite3_close_v2(self->db_);
+    self->db_ = nullptr;
+  }
+  Nan::ThrowError(err);
 }
 
 NAN_METHOD(DBHandle::Query) {
