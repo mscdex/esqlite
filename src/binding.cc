@@ -290,6 +290,7 @@ class DBHandle : public Nan::ObjectWrap {
   static NAN_METHOD(Open);
   static NAN_METHOD(Query);
   static NAN_METHOD(AutoCommit);
+  static NAN_METHOD(Limit);
   static NAN_METHOD(Interrupt);
   static NAN_METHOD(Close);
   static NAN_METHOD(Abort);
@@ -1337,6 +1338,19 @@ NAN_METHOD(DBHandle::AutoCommit) {
   info.GetReturnValue().Set(Nan::New(!!sqlite3_get_autocommit(self->db_)));
 }
 
+NAN_METHOD(DBHandle::Limit) {
+  DBHandle* self = Nan::ObjectWrap::Unwrap<DBHandle>(info.Holder());
+
+  if (!self->db_)
+    return Nan::ThrowError("Database not open");
+
+  int32_t type = Nan::To<int32_t>(info[0]).FromJust();
+  int32_t new_limit = Nan::To<int32_t>(info[1]).FromJust();
+  info.GetReturnValue().Set(
+    Nan::New(sqlite3_limit(self->db_, type, new_limit))
+  );
+}
+
 NAN_METHOD(DBHandle::Interrupt) {
   DBHandle* self = Nan::ObjectWrap::Unwrap<DBHandle>(info.Holder());
 
@@ -1454,6 +1468,7 @@ NAN_MODULE_INIT(init) {
   Nan::SetPrototypeMethod(tpl, "open", DBHandle::Open);
   Nan::SetPrototypeMethod(tpl, "query", DBHandle::Query);
   Nan::SetPrototypeMethod(tpl, "autoCommitEnabled", DBHandle::AutoCommit);
+  Nan::SetPrototypeMethod(tpl, "limit", DBHandle::Limit);
   Nan::SetPrototypeMethod(tpl, "interrupt", DBHandle::Interrupt);
   Nan::SetPrototypeMethod(tpl, "abort", DBHandle::Abort);
   Nan::SetPrototypeMethod(tpl, "close", DBHandle::Close);

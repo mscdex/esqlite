@@ -284,7 +284,10 @@ const { Database } = require('esqlite');
 * **Database** - A class that represents a connection to an SQLite database.
 
 * **ACTION_CODES** - _object_ - Contains currently known SQLite action codes as
-  seen [here][1], keyed on the name minus the `SQLITE_` prefix.
+  seen [here][1], keyed on the name (without the `SQLITE_` prefix).
+
+* **LIMITS** - _object_ - Contains currently known SQLite limit categories as
+  seen [here][2], keyed on the name (without the `SQLITE_LIMIT_` prefix).
 
 * **OPEN_FLAGS** - _object_ - Contains various flags that can be passed to
   `database.open()`:
@@ -371,6 +374,13 @@ const { Database } = require('esqlite');
 * **interrupt**(< _function_ >callback) - _(void)_ -  Interrupts the currently
   running query. `callback` has no arguments and is called after any query has
   been interrupted.
+
+* **limit**(< _integer_ >type[, < _integer_ >newValue]) - _integer_ - Gets/Sets
+  the specified limit identified by `type`. If `newValue` is not given or a
+  negative integer is given, the current value is returned and no changes are
+  made to the limit. If `newValue` is a valid non-negative integer value, then
+  the specified limit is adjusted to the new value (subject to maximum values
+  for the limit imposed by sqlite) and the old value is returned.
 
 * **open**([ < _integer_ >flags ]) - _(void)_ -  Opens the database with optional
   flags whose values come from `OPEN_FLAGS`.
@@ -507,3 +517,4 @@ const { Database } = require('esqlite');
     implicit abort behavior when breaking out of `for await` loops.
 
 [1]: https://www.sqlite.org/c3ref/c_alter_table.html
+[2]: https://www.sqlite.org/c3ref/c_limit_attached.html
