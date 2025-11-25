@@ -6,7 +6,7 @@
   "main": "./lib/index",
   "bin": "./bin/cli.js",
   "dependencies": {
-    "buildcheck": "~0.0.6",
+    "buildcheck": "~0.0.7",
     "nan": "^2.23.0"
   },
   "devDependencies": {
