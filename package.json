@@ -7,7 +7,7 @@
   "bin": "./bin/cli.js",
   "dependencies": {
     "buildcheck": "~0.0.7",
-    "nan": "^2.23.0"
+    "nan": "^2.24.0"
   },
   "devDependencies": {
     "@mscdex/eslint-config": "^1.1.1",
